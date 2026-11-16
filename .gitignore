@@ -23,6 +23,12 @@ submissions/
 test-results/
 playwright-report/
 
+# Internal agent workflow (Claude/Codex orchestration) — kept locally, not published
+AGENTS.md
+CLAUDE.md
+planning/
+docs/decisions/0001-claude-codex-workflow.md
+
 # Logs and OS noise
 *.log
 .DS_Store

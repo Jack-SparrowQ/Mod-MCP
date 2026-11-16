@@ -17,7 +17,7 @@ explícita en un cliente MCP compatible con elicitation.
 ## Instalación
 
 ```bash
-git clone <url-del-repo> moodle-itescam-mcp
+git clone https://github.com/Jack-SparrowQ/Mod-MCP.git moodle-itescam-mcp
 cd moodle-itescam-mcp
 npm install
 npm run build
@@ -44,12 +44,12 @@ guarda en ningún sitio.
 
 Variables de `.env` (plantilla en `.env.example`):
 
-| Variable | Obligatoria | Valor por defecto |
-|---|---|---|
-| `MOODLE_TOKEN` | sí | — (lo escribe `npm run token`) |
-| `MOODLE_BASE_URL` | no | `https://moodle.itescam.edu.mx/moodle4/` (solo HTTPS) |
-| `LOG_LEVEL` | no | `info` (`silent`, `error`, `warn`, `debug`…) |
-| `MAX_DOWNLOAD_MB` | no | `50` (entero de 1 a 500; límite por archivo) |
+| Variable          | Obligatoria | Valor por defecto                                     |
+| ----------------- | ----------- | ----------------------------------------------------- |
+| `MOODLE_TOKEN`    | sí          | — (lo escribe `npm run token`)                        |
+| `MOODLE_BASE_URL` | no          | `https://moodle.itescam.edu.mx/moodle4/` (solo HTTPS) |
+| `LOG_LEVEL`       | no          | `info` (`silent`, `error`, `warn`, `debug`…)          |
+| `MAX_DOWNLOAD_MB` | no          | `50` (entero de 1 a 500; límite por archivo)          |
 
 El servidor carga el `.env` de la carpeta del proyecto aunque el cliente MCP lo lance desde otra
 carpeta.
@@ -83,7 +83,7 @@ codex mcp add moodle-itescam -- node /ruta/a/moodle-itescam-mcp/dist/index.js
 }
 ```
 
-Reinicia el cliente y pídele: *"Comprueba mi conexión con Moodle"* (usa `moodle_auth_status`).
+Reinicia el cliente y pídele: _"Comprueba mi conexión con Moodle"_ (usa `moodle_auth_status`).
 
 ## Herramientas
 
@@ -91,20 +91,20 @@ Las herramientas actúan únicamente sobre tu cuenta: ninguna acepta un id de us
 `moodle_submit_assignment` es la única que escribe en Moodle y siempre requiere confirmación.
 Las fechas se devuelven en ISO 8601 (UTC).
 
-| Herramienta | Entradas | Devuelve |
-|---|---|---|
-| `moodle_auth_status` | — | si el token es válido y la versión del sitio |
-| `moodle_get_profile` | — | tu nombre, usuario, correo y URL de perfil |
-| `moodle_get_courses` | `query?`, `courseId?` | tus cursos; `query` ignora mayúsculas y acentos |
-| `moodle_get_course_contents` | `courseId` | secciones y actividades (archivos: solo metadatos) |
-| `moodle_get_assignments` | `courseId?`, `dueAfter?`, `dueBefore?`, `limit?` (50, máx. 200) | tareas; primero las próximas |
-| `moodle_get_assignment` | `assignmentId` | instrucciones, estado de tu entrega, si está vencida y su nota |
-| `moodle_get_upcoming_deadlines` | `days?` (14, máx. 60), `includeOverdue?` (sí) | lo que aún tienes pendiente, incluidas las vencidas |
-| `moodle_get_calendar_events` | `from?`, `to?` (7 días, máx. 92), `courseId?` | eventos del calendario |
-| `moodle_get_grades` | `courseId?` | resumen por curso, o elementos y total de un curso |
-| `moodle_get_announcements` | `courseId?`, `limit?` (10, máx. 50) | avisos de los foros de noticias |
-| `moodle_download_resource` | `courseId`, `moduleId`, `filename?`, `filepath?` | ruta local y metadatos de un archivo del curso |
-| `moodle_submit_assignment` | `assignmentId`, `files` (1–20 nombres relativos) | entrega verificada, tras confirmación en el cliente |
+| Herramienta                     | Entradas                                                        | Devuelve                                                       |
+| ------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------- |
+| `moodle_auth_status`            | —                                                               | si el token es válido y la versión del sitio                   |
+| `moodle_get_profile`            | —                                                               | tu nombre, usuario, correo y URL de perfil                     |
+| `moodle_get_courses`            | `query?`, `courseId?`                                           | tus cursos; `query` ignora mayúsculas y acentos                |
+| `moodle_get_course_contents`    | `courseId`                                                      | secciones y actividades (archivos: solo metadatos)             |
+| `moodle_get_assignments`        | `courseId?`, `dueAfter?`, `dueBefore?`, `limit?` (50, máx. 200) | tareas; primero las próximas                                   |
+| `moodle_get_assignment`         | `assignmentId`                                                  | instrucciones, estado de tu entrega, si está vencida y su nota |
+| `moodle_get_upcoming_deadlines` | `days?` (14, máx. 60), `includeOverdue?` (sí)                   | lo que aún tienes pendiente, incluidas las vencidas            |
+| `moodle_get_calendar_events`    | `from?`, `to?` (7 días, máx. 92), `courseId?`                   | eventos del calendario                                         |
+| `moodle_get_grades`             | `courseId?`                                                     | resumen por curso, o elementos y total de un curso             |
+| `moodle_get_announcements`      | `courseId?`, `limit?` (10, máx. 50)                             | avisos de los foros de noticias                                |
+| `moodle_download_resource`      | `courseId`, `moduleId`, `filename?`, `filepath?`                | ruta local y metadatos de un archivo del curso                 |
+| `moodle_submit_assignment`      | `assignmentId`, `files` (1–20 nombres relativos)                | entrega verificada, tras confirmación en el cliente            |
 
 Las descargas se guardan en `downloads/<courseId>/` dentro del proyecto, con un límite de 50 MB
 por archivo (configurable con `MAX_DOWNLOAD_MB`). Los archivos existentes nunca se sobrescriben;
@@ -127,22 +127,22 @@ cuando Moodle devuelve el estado `submitted`; las escrituras no se reintentan au
 los archivos llegaron a guardarse como borrador pero la entrega no se confirmó, el error lo indica
 (`draftSaved: true`): revisa la tarea en Moodle antes de reintentar.
 
-Ejemplos de peticiones: *"¿Qué tareas tengo pendientes esta semana?"*, *"Muéstrame mis
-calificaciones de Redes"*, *"¿Qué hay en la sección 3 de Sistemas Operativos?"*.
+Ejemplos de peticiones: _"¿Qué tareas tengo pendientes esta semana?"_, _"Muéstrame mis
+calificaciones de Redes"_, _"¿Qué hay en la sección 3 de Sistemas Operativos?"_.
 
 ### Errores
 
 Las herramientas devuelven `{ error: { code, message, suggestion } }` con estos códigos:
 
-| Código | Qué hacer |
-|---|---|
+| Código                              | Qué hacer                                              |
+| ----------------------------------- | ------------------------------------------------------ |
 | `AUTH_REQUIRED` / `SESSION_EXPIRED` | falta el token o fue revocado: ejecuta `npm run token` |
-| `RESOURCE_NOT_FOUND` | no estás inscrito en ese curso o no existe esa tarea |
-| `PERMISSION_DENIED` | Moodle no te permite ver eso |
-| `MOODLE_UNAVAILABLE` | Moodle no responde; inténtalo más tarde |
-| `VALIDATION_ERROR` | parámetros inválidos (p. ej. `from` posterior a `to`) |
-| `INTEGRATION_UNSUPPORTED` | el servicio web de Moodle no está disponible |
-| `OPERATION_FAILED` | Moodle devolvió algo inesperado |
+| `RESOURCE_NOT_FOUND`                | no estás inscrito en ese curso o no existe esa tarea   |
+| `PERMISSION_DENIED`                 | Moodle no te permite ver eso                           |
+| `MOODLE_UNAVAILABLE`                | Moodle no responde; inténtalo más tarde                |
+| `VALIDATION_ERROR`                  | parámetros inválidos (p. ej. `from` posterior a `to`)  |
+| `INTEGRATION_UNSUPPORTED`           | el servicio web de Moodle no está disponible           |
+| `OPERATION_FAILED`                  | Moodle devolvió algo inesperado                        |
 
 ## Privacidad y seguridad
 
@@ -177,5 +177,8 @@ npm run dev         # servidor con tsx (sin compilar)
 ```
 
 Arquitectura: `docs/architecture.md`. Requisitos: `docs/requirements.md`. Hallazgos sobre Moodle
-ITESCAM: `docs/moodle-investigation.md`. Decisiones: `docs/decisions/`. Flujo de trabajo entre
-agentes: `AGENTS.md`, `CLAUDE.md`.
+ITESCAM: `docs/moodle-investigation.md`. Decisiones: `docs/decisions/`.
+
+## Licencia
+
+ISC — ver [`LICENSE`](LICENSE).

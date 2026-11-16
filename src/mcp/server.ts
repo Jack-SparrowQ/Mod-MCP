@@ -15,7 +15,7 @@ import { registerSubmitAssignment } from './tools/submit-assignment.js';
 import type { SubmissionFiles } from '../domain/submission.js';
 
 export function createServer(adapter: MoodleAdapter, options: {submissionFiles?: SubmissionFiles} = {}) {
-  const server = new McpServer({name: 'moodle-itescam-mcp', version: '0.1.0'});
+  const server = new McpServer({name: 'moodle-itescam-mcp', version: '1.0.0'});
   registerAuthStatus(server, adapter);
   registerGetProfile(server, adapter);
   registerGetCourses(server, adapter);
