@@ -1,5 +1,4 @@
-# Active task — Phase 1: MCP foundation
+# Active task — none
 
-Status: **implemented and reviewed** (no CRITICAL/HIGH; MEDIUM .env-location fix applied) — 2026-11-16.
-Report: `planning/reports/phase-1.md`. Remaining: user runs `npm run token`, registers the server in
-Claude Code and calls `moodle_auth_status` against the real site (live acceptance check).
+Phase 2 finished, reviewed and live-verified on 2026-11-16 (report: `planning/reports/phase-2.md`).
+Next: Phase 3.

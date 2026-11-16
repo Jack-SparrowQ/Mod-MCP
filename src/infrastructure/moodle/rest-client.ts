@@ -1,7 +1,11 @@
 import type { Logger } from 'pino';
 import { MoodleError, type ErrorCode } from '../../domain/errors.js';
+import { flattenParams, type MoodleParam } from './form-params.js';
 
-export const ALLOWED_FUNCTIONS = ['core_webservice_get_site_info'] as const;
+export const ALLOWED_FUNCTIONS = [
+  'core_webservice_get_site_info', 'core_user_get_users_by_field',
+  'core_enrol_get_users_courses', 'core_course_get_contents',
+] as const;
 const mappings: Record<string, ErrorCode> = {
   invalidtoken: 'SESSION_EXPIRED',
   accessexception: 'PERMISSION_DENIED', nopermissions: 'PERMISSION_DENIED',
@@ -17,7 +21,13 @@ export class RestClient {
     return this.options.token ? value.split(this.options.token).join('[REDACTED]') : value;
   }
 
-  async call(wsfunction: string, params: Record<string, string | number | boolean> = {}): Promise<unknown> {
+  siteUrl(path: string, params: Record<string, string>): string {
+    const url = new URL(path, this.options.baseUrl);
+    url.search = new URLSearchParams(params).toString();
+    return this.redact(url.href);
+  }
+
+  async call(wsfunction: string, params: Record<string, MoodleParam> = {}): Promise<unknown> {
     const started = performance.now();
     let outcome: string = 'OK';
     const allowed = ALLOWED_FUNCTIONS.some(name => name === wsfunction);
@@ -26,7 +36,7 @@ export class RestClient {
       if (!this.options.token) throw new MoodleError('AUTH_REQUIRED');
       const reserved = ['wstoken', 'wsfunction', 'moodlewsrestformat'];
       if (Object.keys(params).some(key => reserved.includes(key))) throw new MoodleError('VALIDATION_ERROR');
-      const body = new URLSearchParams(Object.entries(params).map(([key, value]) => [key, String(value)]));
+      const body = flattenParams(params);
       body.set('wstoken', this.options.token);
       body.set('wsfunction', wsfunction);
       body.set('moodlewsrestformat', 'json');
@@ -42,7 +52,7 @@ export class RestClient {
         if (error instanceof MoodleError) throw error;
         throw new MoodleError('MOODLE_UNAVAILABLE');
       }
-      if (!data || typeof data !== 'object' || Array.isArray(data)) throw new MoodleError('MOODLE_UNAVAILABLE');
+      if (!data || typeof data !== 'object') throw new MoodleError('OPERATION_FAILED');
       const result = data as Record<string, unknown>;
       if (result.errorcode || result.exception || result.error) {
         const rawCode = typeof result.errorcode === 'string' ? result.errorcode : 'unknown';

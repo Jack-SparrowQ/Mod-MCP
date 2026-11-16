@@ -68,7 +68,7 @@ describe('REST client', () => {
     if (kind === 'invalidjson') mock.mockResolvedValue(new Response(token));
     if (kind === 'invalidshape') mock.mockResolvedValue(json(null));
     const error = await client.call(fn).catch(error => error);
-    expect(error.code).toBe(kind === 'http400' ? 'OPERATION_FAILED' : 'MOODLE_UNAVAILABLE');
+    expect(error.code).toBe(kind === 'http400' || kind === 'invalidshape' ? 'OPERATION_FAILED' : 'MOODLE_UNAVAILABLE');
     expect(`${error.stack}${JSON.stringify(error)}${lines.join('')}`).not.toContain(token);
   });
   it('redacts logger token fields', () => {

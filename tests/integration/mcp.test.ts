@@ -8,7 +8,8 @@ import type { MoodleAdapter } from '../../src/domain/moodle-adapter.js';
 const site = {sitename: 'Fixture School', release: '4.1', version: '1', lang: 'es'};
 it.each(['success', 'AUTH_REQUIRED', 'SESSION_EXPIRED', 'PERMISSION_DENIED', 'unknown'] as const)
   ('MCP client lists and calls auth status: %s', async mode => {
-    const adapter: MoodleAdapter = {getSiteInfo: async () => {
+    const adapter: MoodleAdapter = {getProfile: async () => { throw new Error('unused'); },
+      getCourses: async () => [], getCourseContents: async () => [], getSiteInfo: async () => {
       if (mode === 'unknown') throw new Error('private sentinel');
       if (mode !== 'success') throw new MoodleError(mode);
       return {...site, fullname: 'private sentinel', token: 'private sentinel'};
@@ -20,7 +21,9 @@ it.each(['success', 'AUTH_REQUIRED', 'SESSION_EXPIRED', 'PERMISSION_DENIED', 'un
       await server.connect(serverTransport);
       await client.connect(clientTransport);
       const tools = await client.listTools();
-      expect(tools.tools.map(tool => tool.name)).toEqual(['moodle_auth_status']);
+      expect(tools.tools.map(tool => tool.name)).toEqual([
+        'moodle_auth_status', 'moodle_get_profile', 'moodle_get_courses', 'moodle_get_course_contents',
+      ]);
       const result = await client.callTool({name: 'moodle_auth_status', arguments: {}});
       const data = result.structuredContent;
       expect(result.content).toEqual([{type: 'text', text: JSON.stringify(data)}]);

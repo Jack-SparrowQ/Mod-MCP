@@ -200,3 +200,21 @@ Downloads should use `webservice/pluginfile.php` with the token (`downloadfiles=
 
 **Strategy A (Web Services REST with a mobile-service token) is verified** for every MVP read
 capability. Playwright is not needed for the MVP. Decision: `docs/decisions/0002-integration-strategy.md`.
+
+---
+
+# Live verification — Phase 2 tools
+
+2026-11-16, user's account, read-only, via an SDK stdio client against `dist/index.js`. Only response
+shapes were printed, never personal or course data.
+
+- `moodle_get_profile`: `id`, `fullname`, `username`, `email`, `profileUrl` all present
+  (`core_user_get_users_by_field` returns the own email for a student).
+- `moodle_get_courses`: 32 enrolled courses; all assumed field types hold. `endDate` null in 21,
+  `progress` null in 30 (completion tracking mostly off). Accent-insensitive query and
+  not-enrolled `courseId` → `RESOURCE_NOT_FOUND` work.
+- `moodle_get_course_contents`: 32/32 courses parse with the strict schemas; 299 sections;
+  modules: assign 421, resource 75, forum 35, label 17, quiz 16, url 15, folder 5, feedback 2,
+  data 1; 105 file-metadata entries; 568 modules with view URL, 19 without (labels etc.);
+  no module used `availabilityinfo`/`availability`.
+- Leak scan over all outputs (185 KB): 0 `pluginfile`, 0 `token=`, token value absent.
