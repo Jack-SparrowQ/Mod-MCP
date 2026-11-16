@@ -1,0 +1,150 @@
+# Moodle ITESCAM MCP
+
+Servidor [MCP](https://modelcontextprotocol.io/) que permite a un asistente de IA (Claude Code,
+Claude Desktop, Codex u otro cliente MCP) consultar tu cuenta de estudiante en
+[Moodle ITESCAM](https://moodle.itescam.edu.mx/moodle4/): cursos, contenidos, tareas, fechas
+límite, calificaciones, calendario y avisos.
+
+Usa la API oficial de Moodle (Web Services, el mismo servicio de la app móvil). No lee HTML, no
+guarda tu contraseña y **solo hace lecturas**: no entrega tareas ni modifica nada.
+
+## Requisitos
+
+- Node.js **24** o superior y npm
+- Una cuenta de estudiante de Moodle ITESCAM
+
+## Instalación
+
+```bash
+git clone <url-del-repo> moodle-itescam-mcp
+cd moodle-itescam-mcp
+npm install
+npm run build
+```
+
+> En PowerShell de Windows, si `npm` falla con "running scripts is disabled", usa `npm.cmd`.
+
+## Obtener tu token
+
+El servidor se autentica con un **token** de Moodle, nunca con tu contraseña.
+
+```bash
+npm run token
+```
+
+Te pide usuario y contraseña (la contraseña no se muestra al escribirla), obtiene el token y lo
+guarda en `.env` como `MOODLE_TOKEN`. El token no se imprime en pantalla y la contraseña no se
+guarda en ningún sitio.
+
+- `.env` está en `.gitignore`: nunca lo subas al repositorio.
+- El token aparece en Moodle en **Preferencias → Claves de seguridad** (servicio
+  `moodle_mobile_app`). Desde ahí puedes revocarlo en cualquier momento.
+- Para "cerrar sesión": revoca la clave en Moodle y borra la línea `MOODLE_TOKEN` de `.env`.
+
+Variables de `.env` (plantilla en `.env.example`):
+
+| Variable | Obligatoria | Valor por defecto |
+|---|---|---|
+| `MOODLE_TOKEN` | sí | — (lo escribe `npm run token`) |
+| `MOODLE_BASE_URL` | no | `https://moodle.itescam.edu.mx/moodle4/` (solo HTTPS) |
+| `LOG_LEVEL` | no | `info` (`silent`, `error`, `warn`, `debug`…) |
+
+El servidor carga el `.env` de la carpeta del proyecto aunque el cliente MCP lo lance desde otra
+carpeta.
+
+## Conectar un cliente MCP
+
+Usa la ruta absoluta a `dist/index.js` de tu copia del proyecto.
+
+**Claude Code**
+
+```bash
+claude mcp add --transport stdio moodle-itescam -- node /ruta/a/moodle-itescam-mcp/dist/index.js
+```
+
+**Codex**
+
+```bash
+codex mcp add moodle-itescam -- node /ruta/a/moodle-itescam-mcp/dist/index.js
+```
+
+**Claude Desktop** — en `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "moodle-itescam": {
+      "command": "node",
+      "args": ["/ruta/a/moodle-itescam-mcp/dist/index.js"]
+    }
+  }
+}
+```
+
+Reinicia el cliente y pídele: *"Comprueba mi conexión con Moodle"* (usa `moodle_auth_status`).
+
+## Herramientas
+
+Todas son de solo lectura y actúan únicamente sobre tu cuenta: ninguna acepta un id de usuario.
+Las fechas se devuelven en ISO 8601 (UTC).
+
+| Herramienta | Entradas | Devuelve |
+|---|---|---|
+| `moodle_auth_status` | — | si el token es válido y la versión del sitio |
+| `moodle_get_profile` | — | tu nombre, usuario, correo y URL de perfil |
+| `moodle_get_courses` | `query?`, `courseId?` | tus cursos; `query` ignora mayúsculas y acentos |
+| `moodle_get_course_contents` | `courseId` | secciones y actividades (archivos: solo metadatos) |
+| `moodle_get_assignments` | `courseId?`, `dueAfter?`, `dueBefore?`, `limit?` (50, máx. 200) | tareas; primero las próximas |
+| `moodle_get_assignment` | `assignmentId` | instrucciones, estado de tu entrega, si está vencida y su nota |
+| `moodle_get_upcoming_deadlines` | `days?` (14, máx. 60), `includeOverdue?` (sí) | lo que aún tienes pendiente, incluidas las vencidas |
+| `moodle_get_calendar_events` | `from?`, `to?` (7 días, máx. 92), `courseId?` | eventos del calendario |
+| `moodle_get_grades` | `courseId?` | resumen por curso, o elementos y total de un curso |
+| `moodle_get_announcements` | `courseId?`, `limit?` (10, máx. 50) | avisos de los foros de noticias |
+
+Ejemplos de peticiones: *"¿Qué tareas tengo pendientes esta semana?"*, *"Muéstrame mis
+calificaciones de Redes"*, *"¿Qué hay en la sección 3 de Sistemas Operativos?"*.
+
+### Errores
+
+Las herramientas devuelven `{ error: { code, message, suggestion } }` con estos códigos:
+
+| Código | Qué hacer |
+|---|---|
+| `AUTH_REQUIRED` / `SESSION_EXPIRED` | falta el token o fue revocado: ejecuta `npm run token` |
+| `RESOURCE_NOT_FOUND` | no estás inscrito en ese curso o no existe esa tarea |
+| `PERMISSION_DENIED` | Moodle no te permite ver eso |
+| `MOODLE_UNAVAILABLE` | Moodle no responde; inténtalo más tarde |
+| `VALIDATION_ERROR` | parámetros inválidos (p. ej. `from` posterior a `to`) |
+| `INTEGRATION_UNSUPPORTED` | el servicio web de Moodle no está disponible |
+| `OPERATION_FAILED` | Moodle devolvió algo inesperado |
+
+## Privacidad y seguridad
+
+- La IA nunca ve tu contraseña ni el token. Sí ve los datos académicos que le pidas (nombre,
+  correo, notas…), porque ese es el propósito de la herramienta.
+- Los logs van a stderr y solo registran la función de Moodle llamada, la duración y el resultado:
+  sin parámetros, datos personales ni token.
+- Solo se pueden llamar 12 funciones de lectura de Moodle (lista explícita en
+  `src/infrastructure/moodle/rest-client.ts`). Las funciones de escritura y de profesor no son
+  accesibles.
+- No se devuelven enlaces de descarga de archivos.
+
+## Limitaciones actuales
+
+- No descarga recursos ni entrega tareas (fases 4 y 5 del roadmap).
+- Avisos: solo la primera página de cada foro de noticias.
+- Fechas límite y calendario: como máximo 200 elementos por consulta (`truncated: true` si hay más).
+- Probado contra Moodle ITESCAM 4.1.1+. Otras instalaciones de Moodle pueden funcionar si
+  tienen habilitado el servicio móvil, pero no están verificadas.
+
+## Desarrollo
+
+```bash
+npm run typecheck   # tsc --noEmit
+npm test            # Vitest; la red real está bloqueada en los tests
+npm run dev         # servidor con tsx (sin compilar)
+```
+
+Arquitectura: `docs/architecture.md`. Requisitos: `docs/requirements.md`. Hallazgos sobre Moodle
+ITESCAM: `docs/moodle-investigation.md`. Decisiones: `docs/decisions/`. Flujo de trabajo entre
+agentes: `AGENTS.md`, `CLAUDE.md`.

@@ -21,4 +21,5 @@ Roadmap from `docs/requirements.md` §14. Move items to "Done" with the date.
 
 ## Done
 
+- [x] 2026-11-16 — README (installation, token, client setup, tools, errors): MVP Definition of Done complete
 - [x] 2026-11-16 — Workflow setup: Herdr Claude↔Codex verified, AGENTS/CLAUDE rules, .gitignore, ADR 0001
