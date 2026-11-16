@@ -1,4 +1,5 @@
-# Active task — none
+# Active task — Phase 1: MCP foundation
 
-Phase 0 complete on 2026-11-16 (0b report: `planning/reports/phase-0b.md`; decision:
-`docs/decisions/0002-integration-strategy.md`). Next: specify Phase 1 — MCP foundation.
+Status: **implemented and reviewed** (no CRITICAL/HIGH; MEDIUM .env-location fix applied) — 2026-11-16.
+Report: `planning/reports/phase-1.md`. Remaining: user runs `npm run token`, registers the server in
+Claude Code and calls `moodle_auth_status` against the real site (live acceptance check).

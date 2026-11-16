@@ -8,7 +8,9 @@ Roadmap from `docs/requirements.md` §14. Move items to "Done" with the date.
   - [x] 0a. Public probe: Moodle 4.1.x, WS + mobile service enabled, typeoflogin=1
   - [x] 0b. Authenticated probe: student token works, 393 functions, all 12 MVP functions available
   - [x] 0c. ADR 0002: Web Services REST only; Playwright not needed for MVP
-- [ ] **Phase 1 — MCP foundation** (next; decide token storage: password in `.env` vs. token only)
+- [ ] **Phase 1 — MCP foundation** — code done 2026-11-16; pending live check with the user's token
+- [ ] LOW: pin `@types/node` to `^24` to match the Node 24 runtime (currently 26)
+- [ ] LOW: Moodle array-param flattening (`courseids[0]=…`) in rest-client — needed in Phase 2
 
 ## Later
 

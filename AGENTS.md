@@ -17,13 +17,15 @@ npm. Planned stack: MCP TypeScript SDK, Zod, Playwright (fallback only), Vitest,
 
 ## Commands
 
-Defined as the project is initialized; keep this list in sync with `package.json`.
+Keep this list in sync with `package.json`. In PowerShell use `npm.cmd` (execution policy blocks `npm.ps1`).
 
 - `npm install` — install dependencies (commit `package-lock.json`)
 - `npm run typecheck` — `tsc --noEmit`
 - `npm run build` — compile to `dist/`
-- `npm test` — Vitest (to be added in Phase 1)
+- `npm test` — Vitest (unit + in-memory MCP integration; real network is stubbed out)
 - `npm run dev` — run the server with tsx
+- `npm start` — run the built server (`dist/index.js`, loads the project-root `.env`)
+- `npm run token` — interactive: exchange username/password for `MOODLE_TOKEN` in `.env` (user only)
 
 ## Rules
 
