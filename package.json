@@ -1,0 +1,15 @@
+{
+  "name": "moodle-itescam-mcp",
+  "version": "0.1.0",
+  "description": "Servidor MCP para interactuar con Moodle ITESCAM mediante automatización del navegador",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "license": "ISC"
+}

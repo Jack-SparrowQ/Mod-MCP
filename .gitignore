@@ -1,0 +1,23 @@
+node_modules/
+dist/
+coverage/
+
+# Secrets and session state — never commit (NFR-01)
+.env
+.env.*
+!.env.example
+*.token
+.auth/
+.browser-profile/
+playwright/.cache/
+storage-state*.json
+
+# Downloads and test output
+downloads/
+test-results/
+playwright-report/
+
+# Logs and OS noise
+*.log
+.DS_Store
+Thumbs.db
