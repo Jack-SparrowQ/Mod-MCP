@@ -120,8 +120,12 @@ carpeta, enlaces simbólicos, archivos vacíos o duplicados.
 El cliente mostrará un formulario de confirmación con curso, tarea, archivos y tamaños, fecha
 límite y avisos de entrega tardía o reemplazo de borradores. Debes confirmar y, si corresponde,
 aceptar la declaración de autoría. La IA no puede responder ese formulario. Sin un cliente con
-elicitation de formularios (como Claude Code), no se sube ni entrega nada. Solo se informa éxito
-cuando Moodle devuelve el estado `submitted`; las escrituras no se reintentan automáticamente.
+elicitation de formularios (Claude Code; Codex también la declara), no se sube ni entrega nada.
+Codex en modo no interactivo (`codex exec`) rechaza la confirmación automáticamente y además
+bloquea las herramientas que no son de solo lectura, así que nunca puede entregar sin ti. Solo se informa éxito
+cuando Moodle devuelve el estado `submitted`; las escrituras no se reintentan automáticamente. Si
+los archivos llegaron a guardarse como borrador pero la entrega no se confirmó, el error lo indica
+(`draftSaved: true`): revisa la tarea en Moodle antes de reintentar.
 
 Ejemplos de peticiones: *"¿Qué tareas tengo pendientes esta semana?"*, *"Muéstrame mis
 calificaciones de Redes"*, *"¿Qué hay en la sección 3 de Sistemas Operativos?"*.

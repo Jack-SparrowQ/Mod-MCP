@@ -8,6 +8,7 @@ export async function submitAssignment(adapter: MoodleAdapter, local: Submission
   input: {assignmentId: number; files: string[]}) {
   if (inFlight.has(input.assignmentId)) throw new MoodleError('VALIDATION_ERROR', 'submission already in progress');
   inFlight.add(input.assignmentId);
+  let draftSaved = false;
   try {
     const files = await local.inspect(input.files);
     const assignment = await adapter.getSubmissionAssignment(await adapter.getCourses(), input.assignmentId);
@@ -48,6 +49,7 @@ export async function submitAssignment(adapter: MoodleAdapter, local: Submission
     let itemId = 0;
     for (const file of snapshots) itemId = await adapter.uploadSubmissionFile(file, itemId);
     await adapter.saveSubmission(assignment.id, itemId);
+    draftSaved = true;
     if (assignment.drafts) await adapter.submitForGrading(assignment.id, approval.acceptedStatement);
     const verified = await adapter.getSubmissionState(assignment.id);
     if (verified.status !== 'submitted') throw new MoodleError('OPERATION_FAILED', 'Moodle did not confirm the submission', {status: verified.status});
@@ -55,5 +57,12 @@ export async function submitAssignment(adapter: MoodleAdapter, local: Submission
     return {submitted: true, status: verified.status, assignmentId: assignment.id, assignmentName: assignment.name,
       courseName: assignment.courseName, files: files.map(file => ({name: file.name, size: file.size})),
       submittedAt, late: assignment.dueDate !== null && Date.parse(assignment.dueDate) < Date.parse(submittedAt)};
+  } catch (error) {
+    if (!draftSaved) throw error;
+    const safe = error instanceof MoodleError ? error : new MoodleError('OPERATION_FAILED');
+    throw new MoodleError(safe.code,
+      'Files were saved in Moodle as a draft but the submission was not confirmed.',
+      {...safe.context, draftSaved: true},
+      'Open the assignment in Moodle to check it; do not retry blindly.');
   } finally { inFlight.delete(input.assignmentId); }
 }

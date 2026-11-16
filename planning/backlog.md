@@ -10,15 +10,15 @@ Roadmap from `docs/requirements.md` §14. Move items to "Done" with the date.
   - [x] 0c. ADR 0002: Web Services REST only; Playwright not needed for MVP
 - [x] **Phase 1 — MCP foundation** — done 2026-11-16, live `moodle_auth_status` OK (commit 5b488bd)
 - [x] **Phase 2 — Profile, courses, course contents** — done 2026-11-16, live-verified on 32 courses
-- [ ] LOW: pin `@types/node` to `^24` to match the Node 24 runtime (currently 26)
+- [x] LOW: `@types/node` pinned to 24.x (Phase 6a)
 
 ## Later
 
 - [x] **Phase 3 — Assignments, deadlines, calendar, grades, announcements** — done 2026-11-16, live-verified
 - [x] **Phase 4 — Resource downloads** — done 2026-11-16, live-verified (commit c53ad41)
 - [x] **Phase 5 — Assignment submission** — done 2026-11-16, reviewed + live dry run (writes blocked); real submission untested by design
-- [ ] LOW: report "a draft may have been saved" when save_submission succeeds but submit_for_grading fails
-- [ ] Phase 6 — Optimization, docs, client integration tests
+- [x] LOW: draftSaved error after a partial submission (Phase 6a)
+- [ ] **Phase 6 — Release hardening**: 6a code done; Codex MCP client verified (auth_status + elicitation probe); final review pending
 
 ## Done
 

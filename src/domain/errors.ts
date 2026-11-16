@@ -17,7 +17,7 @@ export class MoodleError extends Error {
   constructor(
     public readonly code: ErrorCode,
     message = messages[code],
-    public readonly context: Record<string, string | number> = {},
+    public readonly context: Record<string, string | number | boolean> = {},
     public readonly suggestion = code === 'AUTH_REQUIRED' || code === 'SESSION_EXPIRED'
       ? 'Run npm run token' : 'Check Moodle availability and account permissions, then try again.',
   ) { super(message); this.name = 'MoodleError'; }

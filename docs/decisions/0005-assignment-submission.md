@@ -17,6 +17,7 @@ explicit user confirmation; NFR-02 demands no duplicate submissions. An AI could
 - Success is reported only after `mod_assign_get_submission_status` shows `submitted`.
 - Write functions are callable only through an explicit write path in the REST client.
 
-**Consequences:** works in Claude Code (supports elicitation); may be unavailable in clients without
-it (possibly Codex). A real end-to-end test can only happen when the user chooses to submit a real
+**Consequences:** works in Claude Code. Verified 2026-11-16 with a stub server (no Moodle): Codex
+declares elicitation (form + url); `codex exec` auto-declines it and refuses non-read-only MCP tools
+("approval policy is never"), so unattended Codex cannot submit. Interactive Codex untested. A real end-to-end test can only happen when the user chooses to submit a real
 assignment.

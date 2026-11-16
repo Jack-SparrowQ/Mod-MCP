@@ -114,8 +114,10 @@ it('fails verification without claiming success if Moodle still reports draft', 
   await session(async (client, fixture) => {
     const result = await submit(client);
     expect(result.isError).toBe(true);
-    expect(result.structuredContent).toEqual({error: {code: 'OPERATION_FAILED', message: 'Moodle did not confirm the submission',
-      context: {status: 'draft'}, suggestion: expect.any(String)}});
+    expect(result.structuredContent).toEqual({error: {code: 'OPERATION_FAILED',
+      message: 'Files were saved in Moodle as a draft but the submission was not confirmed.',
+      context: {status: 'draft', draftSaved: true},
+      suggestion: 'Open the assignment in Moodle to check it; do not retry blindly.'}});
     expect(result.structuredContent).not.toHaveProperty('submitted');
     expect(fixture.calls().at(-1)?.name).toBe('mod_assign_get_submission_status');
   }, {configure: fixture => { fixture.verified.lastattempt.submission.status = 'draft'; }});
@@ -215,12 +217,46 @@ it.each(['upload', 'mod_assign_save_submission', 'mod_assign_submit_for_grading'
     expect(result.isError).toBe(true);
     expect(result.structuredContent).not.toHaveProperty('submitted');
     expect(fixture.writes().filter(call => call.name === failed)).toHaveLength(1);
+    if (failed === 'mod_assign_submit_for_grading') {
+      expect(result.structuredContent).toMatchObject({error: {code: 'OPERATION_FAILED',
+        message: 'Files were saved in Moodle as a draft but the submission was not confirmed.',
+        context: {draftSaved: true, warningcodes: 'submission_warning'},
+        suggestion: 'Open the assignment in Moodle to check it; do not retry blindly.'}});
+    } else {
+      expect((result.structuredContent!.error as {context: object}).context).not.toHaveProperty('draftSaved');
+    }
     expect(fixture.writes().at(-1)?.name).toBe(failed);
     expect(JSON.stringify(result) + fixture.logs.join('')).not.toContain('PRIVATE_WARNING');
     if (failed !== 'upload') expect(fixture.logs.map(line => JSON.parse(line)).findLast(line => line.function === failed)?.outcome).toBe('OPERATION_FAILED');
   }, {configure: fixture => {
     fixture.replies[failed] = failed === 'upload' ? {errorcode: 'nopermissions', message: 'PRIVATE_WARNING'}
       : [{warningcode: 'submission_warning', message: 'PRIVATE_WARNING'}];
+  }});
+});
+it('preserves the original error code when finalization fails after save', async () => {
+  await session(async (client, fixture) => {
+    expect((await submit(client)).structuredContent).toEqual({error: {code: 'PERMISSION_DENIED',
+      message: 'Files were saved in Moodle as a draft but the submission was not confirmed.',
+      context: {errorcode: 'nopermissions', draftSaved: true},
+      suggestion: 'Open the assignment in Moodle to check it; do not retry blindly.'}});
+    expect(fixture.writes().map(call => call.name)).toEqual(['upload', 'mod_assign_save_submission', 'mod_assign_submit_for_grading']);
+  }, {configure: fixture => { fixture.replies.mod_assign_submit_for_grading = {errorcode: 'nopermissions', message: 'PRIVATE_WARNING'}; }});
+});
+it('preserves a verification transport failure after save with draftSaved and no retry', async () => {
+  await session(async (client, fixture) => {
+    expect((await submit(client)).structuredContent).toEqual({error: {code: 'MOODLE_UNAVAILABLE',
+      message: 'Files were saved in Moodle as a draft but the submission was not confirmed.',
+      context: {draftSaved: true}, suggestion: 'Open the assignment in Moodle to check it; do not retry blindly.'}});
+    expect(fixture.calls().filter(call => call.name === 'mod_assign_get_submission_status')).toHaveLength(2);
+  }, {configure: fixture => {
+    const original = fixture.mock.getMockImplementation()!;
+    let statusCalls = 0;
+    fixture.mock.mockImplementation(async (url, options) => {
+      if (!(options!.body instanceof FormData) && (options!.body as URLSearchParams).get('wsfunction') === 'mod_assign_get_submission_status' && ++statusCalls === 2) {
+        throw new Error('PRIVATE_TRANSPORT_ERROR');
+      }
+      return original(url, options);
+    });
   }});
 });
 it.each([{userid: 42}, {confirm: true}, {url: 'https://evil.invalid'}, {files: []}, {files: Array(21).fill('x.pdf')}])
