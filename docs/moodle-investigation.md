@@ -218,3 +218,22 @@ shapes were printed, never personal or course data.
   data 1; 105 file-metadata entries; 568 modules with view URL, 19 without (labels etc.);
   no module used `availabilityinfo`/`availability`.
 - Leak scan over all outputs (185 KB): 0 `pluginfile`, 0 `token=`, token value absent.
+
+---
+
+# Live verification — Phase 3 tools
+
+2026-11-16, user's account, read-only, shapes/counts only.
+
+Discovered behaviour (not documented in our candidates list, fixed in code):
+- `core_calendar_get_action_events_by_timesort` rejects `limitnum > 50`; its error puts a free-text
+  sentence in `errorcode`. Tool now pages with `aftereventid`.
+- `gradereport_user_get_grade_items`: the course-total item has `itemname: null` (1 per course);
+  over 494 items `graderaw` and `gradedategraded` are mostly null (ungraded), `grademin`/`grademax`
+  always numbers.
+- All 32 news forums have 0 discussions, so `moodle_get_announcements` correctly returns 0.
+
+Results after fixes: assignments (421 total; default view now upcoming first: 22 upcoming + 28 past
+in the first 50), assignment detail 15/15 (12 submitted, 3 new+overdue), deadlines 20 pending
+(5 overdue, all with activity URLs), calendar 37 events in a 90-day window, grades overview 32
+courses and per-course 32/32 (462 items, 30 graded). Leak scan over 143 KB: clean.

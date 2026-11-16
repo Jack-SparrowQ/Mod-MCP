@@ -6,9 +6,12 @@ import { MoodleError } from '../../src/domain/errors.js';
 import type { MoodleAdapter } from '../../src/domain/moodle-adapter.js';
 
 const site = {sitename: 'Fixture School', release: '4.1', version: '1', lang: 'es'};
+const unused = async (): Promise<never> => { throw new Error('unused'); };
 it.each(['success', 'AUTH_REQUIRED', 'SESSION_EXPIRED', 'PERMISSION_DENIED', 'unknown'] as const)
   ('MCP client lists and calls auth status: %s', async mode => {
-    const adapter: MoodleAdapter = {getProfile: async () => { throw new Error('unused'); },
+    const adapter: MoodleAdapter = {getProfile: unused,
+      getAssignments: unused, getAssignmentSubmission: unused, getActionEvents: unused,
+      getCalendarEvents: unused, getGradeOverview: unused, getGradeItems: unused, getAnnouncements: unused,
       getCourses: async () => [], getCourseContents: async () => [], getSiteInfo: async () => {
       if (mode === 'unknown') throw new Error('private sentinel');
       if (mode !== 'success') throw new MoodleError(mode);
@@ -23,6 +26,8 @@ it.each(['success', 'AUTH_REQUIRED', 'SESSION_EXPIRED', 'PERMISSION_DENIED', 'un
       const tools = await client.listTools();
       expect(tools.tools.map(tool => tool.name)).toEqual([
         'moodle_auth_status', 'moodle_get_profile', 'moodle_get_courses', 'moodle_get_course_contents',
+        'moodle_get_assignments', 'moodle_get_assignment', 'moodle_get_upcoming_deadlines',
+        'moodle_get_calendar_events', 'moodle_get_grades', 'moodle_get_announcements',
       ]);
       const result = await client.callTool({name: 'moodle_auth_status', arguments: {}});
       const data = result.structuredContent;

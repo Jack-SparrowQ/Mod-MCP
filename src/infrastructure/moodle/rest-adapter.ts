@@ -2,6 +2,8 @@ import { MoodleError } from '../../domain/errors.js';
 import type { MoodleAdapter, SiteInfo, UserProfile, Course, CourseSection, CourseFile } from '../../domain/moodle-adapter.js';
 import { htmlToText, unixToIso } from '../../shared/moodle-values.js';
 import type { RestClient } from './rest-client.js';
+import { AcademicReads } from './academic-reads.js';
+import { activityUrl } from '../../shared/activity-url.js';
 import {
   parseResponse, idSchema, siteSchema, identitySchema, emailSchema, coursesSchema,
   sectionsSchema, contentSchema, fileSchema,
@@ -10,7 +12,18 @@ import {
 export class RestAdapter implements MoodleAdapter {
   private ownUserId?: number;
   private pendingSiteInfo?: Promise<unknown>;
-  constructor(private readonly client: RestClient) {}
+  private readonly academic: AcademicReads;
+  constructor(private readonly client: RestClient) {
+    this.academic = new AcademicReads(client, () => this.getOwnUserId());
+  }
+
+  getAssignments(courses: Course[]) { return this.academic.getAssignments(courses); }
+  getAssignmentSubmission(assignmentId: number) { return this.academic.getAssignmentSubmission(assignmentId); }
+  getActionEvents(courses: Course[], from: number, to: number, limit: number) { return this.academic.getActionEvents(courses, from, to, limit); }
+  getCalendarEvents(courses: Course[], from: number, to: number) { return this.academic.getCalendarEvents(courses, from, to); }
+  getGradeOverview(courses: Course[]) { return this.academic.getGradeOverview(courses); }
+  getGradeItems(course: Course) { return this.academic.getGradeItems(course); }
+  getAnnouncements(courses: Course[], limit: number) { return this.academic.getAnnouncements(courses, limit); }
 
   // Only userid persists. Concurrent callers share an in-flight request, not a data cache.
   private async loadSiteInfo(): Promise<unknown> {
@@ -77,15 +90,8 @@ export class RestAdapter implements MoodleAdapter {
   }
 
   private moduleUrl(value: string | null | undefined): string | undefined {
-    if (!value) return undefined;
-    try {
-      const url = new URL(value);
-      // Return activity pages only, never direct download/pluginfile URLs or token links.
-      if (url.protocol !== 'https:' || url.username || url.password ||
-        !/\/mod\/[a-z][a-z0-9_]*\/view\.php$/.test(url.pathname) ||
-        [...url.searchParams.keys()].some(key => /token|sesskey/i.test(key))) return undefined;
-      return this.client.redact(url.href);
-    } catch { return undefined; }
+    const url = activityUrl(value);
+    return url ? this.client.redact(url) : undefined;
   }
 
   async getCourseContents(courseId: number): Promise<CourseSection[]> {

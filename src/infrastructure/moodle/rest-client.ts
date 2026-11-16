@@ -5,6 +5,10 @@ import { flattenParams, type MoodleParam } from './form-params.js';
 export const ALLOWED_FUNCTIONS = [
   'core_webservice_get_site_info', 'core_user_get_users_by_field',
   'core_enrol_get_users_courses', 'core_course_get_contents',
+  'mod_assign_get_assignments', 'mod_assign_get_submission_status',
+  'core_calendar_get_action_events_by_timesort', 'core_calendar_get_calendar_events',
+  'gradereport_overview_get_course_grades', 'gradereport_user_get_grade_items',
+  'mod_forum_get_forums_by_courses', 'mod_forum_get_forum_discussions',
 ] as const;
 const mappings: Record<string, ErrorCode> = {
   invalidtoken: 'SESSION_EXPIRED',
@@ -36,6 +40,8 @@ export class RestClient {
       if (!this.options.token) throw new MoodleError('AUTH_REQUIRED');
       const reserved = ['wstoken', 'wsfunction', 'moodlewsrestformat'];
       if (Object.keys(params).some(key => reserved.includes(key))) throw new MoodleError('VALIDATION_ERROR');
+      if ((wsfunction === 'mod_assign_get_submission_status' || wsfunction === 'gradereport_overview_get_course_grades') &&
+        'userid' in params) throw new MoodleError('VALIDATION_ERROR');
       const body = flattenParams(params);
       body.set('wstoken', this.options.token);
       body.set('wsfunction', wsfunction);

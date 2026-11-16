@@ -1,3 +1,5 @@
+import type { Assignment, SubmissionInfo, AssignmentGrade, Deadline, CalendarEvent, CourseGrade, GradeItem, Announcement } from './academic.js';
+
 export interface SiteInfo {
   release: string;
   version: string;
@@ -52,4 +54,11 @@ export interface MoodleAdapter {
   getProfile(): Promise<UserProfile>;
   getCourses(): Promise<Course[]>;
   getCourseContents(courseId: number): Promise<CourseSection[]>;
+  getAssignments(courses: Course[]): Promise<Assignment[]>;
+  getAssignmentSubmission(assignmentId: number): Promise<{submission: SubmissionInfo; grade?: AssignmentGrade}>;
+  getActionEvents(courses: Course[], from: number, to: number, limit: number): Promise<{events: Deadline[]; truncated: boolean}>;
+  getCalendarEvents(courses: Course[], from: number, to: number): Promise<CalendarEvent[]>;
+  getGradeOverview(courses: Course[]): Promise<CourseGrade[]>;
+  getGradeItems(course: Course): Promise<GradeItem[]>;
+  getAnnouncements(courses: Course[], limit: number): Promise<Announcement[]>;
 }

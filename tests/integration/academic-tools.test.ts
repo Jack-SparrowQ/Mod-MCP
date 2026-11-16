@@ -22,12 +22,14 @@ async function call(client: Client, name: string, args: Record<string, unknown> 
   return result;
 }
 
-it('lists exactly four read-only tools, returns only own profile fields and leaves auth status private', async () => {
+it('lists ten read-only tools, returns only own profile fields and leaves auth status private', async () => {
   const {adapter} = adapterFixture();
   await withClient(adapter, async client => {
     const tools = (await client.listTools()).tools;
     expect(tools.map(tool => tool.name)).toEqual([
       'moodle_auth_status', 'moodle_get_profile', 'moodle_get_courses', 'moodle_get_course_contents',
+      'moodle_get_assignments', 'moodle_get_assignment', 'moodle_get_upcoming_deadlines',
+      'moodle_get_calendar_events', 'moodle_get_grades', 'moodle_get_announcements',
     ]);
     expect(tools.every(tool => tool.annotations?.readOnlyHint)).toBe(true);
     const profile = await call(client, 'moodle_get_profile');
@@ -102,7 +104,9 @@ it('distinguishes enrolled but inaccessible contents as PERMISSION_DENIED', asyn
 });
 it.each(['AUTH_REQUIRED', 'SESSION_EXPIRED'] as const)('new tools treat %s as an error result', async code => {
   const failing = async (): Promise<never> => { throw new MoodleError(code); };
-  const adapter: MoodleAdapter = {getSiteInfo: failing, getProfile: failing, getCourses: failing, getCourseContents: failing};
+  const adapter: MoodleAdapter = {getSiteInfo: failing, getProfile: failing, getCourses: failing, getCourseContents: failing,
+    getAssignments: failing, getAssignmentSubmission: failing, getActionEvents: failing,
+    getCalendarEvents: failing, getGradeOverview: failing, getGradeItems: failing, getAnnouncements: failing};
   await withClient(adapter, async client => {
     for (const name of ['moodle_get_profile', 'moodle_get_courses', 'moodle_get_course_contents']) {
       const result = await call(client, name, name === 'moodle_get_course_contents' ? {courseId: 7} : {});

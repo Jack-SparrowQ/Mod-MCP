@@ -6,7 +6,7 @@ const entities: Record<string, string> = {
   Aacute: 'Á', Eacute: 'É', Iacute: 'Í', Oacute: 'Ó', Uacute: 'Ú', Ntilde: 'Ñ', Uuml: 'Ü',
   ndash: '–', mdash: '—', hellip: '…', copy: '©', reg: '®',
 };
-export function htmlToText(html: string): string {
+export function htmlToText(html: string, maxLength = 500): string {
   const text = html.replace(/<!--[\s\S]*?-->/g, ' ')
     .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, ' ')
     .replace(/<[^>]*>/g, ' ')
@@ -17,7 +17,7 @@ export function htmlToText(html: string): string {
         ? String.fromCodePoint(point) : match;
     }).replace(/\s+/g, ' ').trim();
   const characters = Array.from(text);
-  return characters.length > 500 ? characters.slice(0, 499).join('') + '…' : text;
+  return characters.length > maxLength ? characters.slice(0, maxLength - 1).join('') + '…' : text;
 }
 
 export function unixToIso(value: number | null | undefined): string | null {
