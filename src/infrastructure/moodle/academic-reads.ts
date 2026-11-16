@@ -3,6 +3,7 @@ import type { Course } from '../../domain/moodle-adapter.js';
 import type { Assignment, SubmissionInfo, Deadline, CalendarEvent, CourseGrade, GradeItem, Announcement } from '../../domain/academic.js';
 import { htmlToText, unixToIso } from '../../shared/moodle-values.js';
 import { activityUrl } from '../../shared/activity-url.js';
+import { normalizeSubmissionStatus } from '../../shared/submission-status.js';
 import { parseResponse } from './response-schemas.js';
 import { assignmentsSchema, submissionSchema, actionSchema, calendarSchema, overviewSchema,
   gradeItemsSchema, forumsSchema, discussionsSchema } from './academic-schemas.js';
@@ -51,11 +52,7 @@ export class AcademicReads {
   async getAssignmentSubmission(assignmentId: number) {
     const data = parseResponse(submissionSchema, await this.client.call('mod_assign_get_submission_status', {assignid: assignmentId}));
     const attempt = data.lastattempt;
-    const submitted = attempt?.submission ?? attempt?.teamsubmission;
-    const state = submitted?.status;
-    const status: SubmissionInfo['status'] = state === 'submitted' || state === 'draft' || state === 'new' || state === 'reopened'
-      ? state : 'unknown';
-    const submission: SubmissionInfo = {status, gradingStatus: this.text(attempt?.gradingstatus), lastModified: unixToIso(submitted?.timemodified)};
+    const submission: SubmissionInfo = {...normalizeSubmissionStatus(attempt), gradingStatus: this.text(attempt?.gradingstatus)};
     if (!data.feedback) return {submission};
     const raw = rawGrade(data.feedback.grade?.grade);
     const formatted = this.text(data.feedback.gradefordisplay);

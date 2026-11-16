@@ -1,26 +1,31 @@
 import { lstat, realpath, open } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { resolve, sep, win32, posix } from 'node:path';
+import { resolve, win32, posix } from 'node:path';
 import { MoodleError } from '../../domain/errors.js';
 import type { SubmissionFiles, LocalSubmissionFile, UploadFile } from '../../domain/submission.js';
+import { isWithinPath, samePath } from '../../shared/path-containment.js';
 
 const invalid = () => new MoodleError('VALIDATION_ERROR', 'Use distinct, non-empty regular files inside submissions/.');
 export class LocalSubmissionFiles implements SubmissionFiles {
   constructor(private readonly root: string) {}
   private async checkedPath(name: string) {
+    const filename = posix.basename(name.replace(/\\/g, '/'));
+    if (/['&`"*:<>?|\\/\x00-\x1f\x7f-\x9f]/.test(filename)) throw new MoodleError('VALIDATION_ERROR',
+      'The filename contains characters Moodle would change.', {reason: 'filename_characters'}, 'Rename the file to remove characters Moodle would change.');
     if (!name || /[\x00-\x1f]/.test(name) || /^[a-z][a-z0-9+.-]*:/i.test(name) || win32.isAbsolute(name) || posix.isAbsolute(name)) throw invalid();
     const parts = name.replace(/\\/g, '/').split('/');
     if (parts.some(part => part === '..' || part === '' || part === '.' || /[<>:"|?*]/.test(part))) throw invalid();
-    const root = resolve(this.root);
-    if ((await lstat(root)).isSymbolicLink() || resolve(await realpath(root)) !== root) throw invalid();
+    if ((await lstat(this.root)).isSymbolicLink()) throw invalid();
+    const root = resolve(await realpath(this.root));
     let path = root;
     for (const part of parts) {
       path = resolve(path, part);
-      if (!path.startsWith(root + sep) || (await lstat(path)).isSymbolicLink()) throw invalid();
+      if (samePath(path, root) || !isWithinPath(root, path) || (await lstat(path)).isSymbolicLink()) throw invalid();
     }
-    if (!(await lstat(path)).isFile() || !resolve(await realpath(path)).startsWith(root + sep)) throw invalid();
-    return path;
+    const fileReal = resolve(await realpath(path));
+    if (!(await lstat(path)).isFile() || samePath(fileReal, root) || !isWithinPath(root, fileReal)) throw invalid();
+    return fileReal;
   }
   private async read(name: string, snapshot: boolean) {
     try {
@@ -29,7 +34,7 @@ export class LocalSubmissionFiles implements SubmissionFiles {
       const handle = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
       try {
         const stat = await handle.stat();
-        if (!stat.isFile() || !stat.size || stat.ino !== before.ino || stat.dev !== before.dev || await this.checkedPath(name) !== path) throw invalid();
+        if (!stat.isFile() || !stat.size || stat.ino !== before.ino || stat.dev !== before.dev || !samePath(await this.checkedPath(name), path)) throw invalid();
         const hash = createHash('sha256');
         const chunks: Buffer[] = [];
         let size = 0;
@@ -38,11 +43,11 @@ export class LocalSubmissionFiles implements SubmissionFiles {
           if (snapshot) chunks.push(chunk);
         }
         const after = await handle.stat();
-        if (size !== stat.size || after.size !== stat.size || after.mtimeMs !== stat.mtimeMs || await this.checkedPath(name) !== path) throw invalid();
+        if (size !== stat.size || after.size !== stat.size || after.mtimeMs !== stat.mtimeMs || !samePath(await this.checkedPath(name), path)) throw invalid();
         return {name, filename: posix.basename(name.replace(/\\/g, '/')), size, sha256: hash.digest('hex'),
           ...(snapshot ? {bytes: Buffer.concat(chunks)} : {})};
       } finally { await handle.close(); }
-    } catch { throw invalid(); }
+    } catch (error) { if (error instanceof MoodleError) throw error; throw invalid(); }
   }
   async inspect(names: string[]): Promise<LocalSubmissionFile[]> {
     const files: LocalSubmissionFile[] = [];

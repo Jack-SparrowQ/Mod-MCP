@@ -15,9 +15,9 @@ it('maps a real-shaped null-name course total and preserves null ordinary-item n
 });
 it.each([
   ['itemname', 42], ['itemname', undefined], ['itemmodule', false], ['itemmodule', undefined],
-  ['graderaw', '87.5'], ['graderaw', undefined], ['gradedategraded', '123'], ['gradedategraded', -1],
-  ['gradeformatted', null], ['percentageformatted', null], ['feedback', null],
-  ['grademin', '0'], ['grademax', '100'], ['gradeishidden', 0], ['gradeishidden', undefined],
+  ['graderaw', '87.5'], ['gradedategraded', '123'], ['gradedategraded', -1],
+  ['gradeformatted', 17], ['percentageformatted', 17], ['feedback', 17],
+  ['grademin', '0'], ['grademax', '100'], ['gradeishidden', 0],
 ] as const)('rejects unexpected grade-item type %s=%s', async (key, value) => {
   const {adapter} = academicFixture({gradereport_user_get_grade_items: {usergrades: [{userid: 42,
     gradeitems: [{...gradeItemDefaults, [key]: value}],

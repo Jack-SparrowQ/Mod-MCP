@@ -61,7 +61,7 @@ export class RestAdapter implements MoodleAdapter {
     const directory = insideDirectory(root, String(input.courseId));
     const originalFilename = this.client.redact(file.filename);
     const destination = insideDirectory(directory, sanitizeFilename(originalFilename));
-    const saved = await this.client.download(file.fileurl, destination, this.downloads.maxBytes ?? 50 * 1024 * 1024, file.filesize);
+    const saved = await this.client.download(file.fileurl, destination, this.downloads.maxBytes ?? 50 * 1024 * 1024, file.filesize, root);
     return {path: saved.path, filename: basename(saved.path), originalFilename, size: saved.size,
       mimeType: file.mimetype == null ? saved.mimeType : this.client.redact(file.mimetype), courseId: input.courseId, moduleId: input.moduleId};
   }

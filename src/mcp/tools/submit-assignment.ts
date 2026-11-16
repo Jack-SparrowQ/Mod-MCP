@@ -6,6 +6,7 @@ import type { SubmissionFiles, SubmissionConfirmation } from '../../domain/submi
 import { MoodleError } from '../../domain/errors.js';
 import { submitAssignment } from '../../application/submit-assignment.js';
 import { readTool } from './read-tool.js';
+export const ELICITATION_TIMEOUT_MS = 10 * 60 * 1000;
 
 export function registerSubmitAssignment(server: McpServer, adapter: MoodleAdapter, local?: SubmissionFiles) {
   const unavailable = async (): Promise<never> => { throw new MoodleError('VALIDATION_ERROR', 'Submission directory is not configured.'); };
@@ -18,10 +19,13 @@ export function registerSubmitAssignment(server: McpServer, adapter: MoodleAdapt
           type: 'object', properties: {confirm: {type: 'boolean', title: 'Confirm submission'},
             ...(requiresStatement ? {acceptStatement: {type: 'boolean' as const, title: 'Accept submission statement'}} : {})},
           required: requiresStatement ? ['confirm', 'acceptStatement'] : ['confirm'],
-        }});
+        }}, {timeout: ELICITATION_TIMEOUT_MS});
         return {confirmed: result.action === 'accept' && result.content?.confirm === true,
           acceptedStatement: result.action === 'accept' && result.content?.acceptStatement === true};
       } catch (error) {
+        if (error instanceof McpError && error.code === ErrorCode.RequestTimeout) return {
+          confirmed: false, acceptedStatement: false, reason: 'confirmation_timeout',
+        };
         // Missing/invalid required booleans must never become approval.
         if (error instanceof McpError && error.code === ErrorCode.InvalidParams) return {confirmed: false, acceptedStatement: false};
         throw new MoodleError('CONFIRMATION_REQUIRED', undefined, {}, 'Use an MCP client that supports elicitation, such as Claude Code');

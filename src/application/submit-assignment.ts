@@ -16,8 +16,6 @@ export async function submitAssignment(adapter: MoodleAdapter, local: Submission
     if (assignment.team) throw new MoodleError('INTEGRATION_UNSUPPORTED', 'Team submissions are not supported.');
     if (!assignment.fileEnabled) throw new MoodleError('INTEGRATION_UNSUPPORTED', 'File submissions are not enabled.');
     const now = Date.now();
-    if (assignment.allowSubmissionsFrom && Date.parse(assignment.allowSubmissionsFrom) > now) throw invalid('not_open');
-    if (assignment.cutoffDate && Date.parse(assignment.cutoffDate) < now) throw invalid('cutoff_passed');
     if (assignment.maxFiles !== null && files.length > assignment.maxFiles) throw invalid('too_many_files');
     if (assignment.maxFileBytes && files.some(file => file.size > assignment.maxFileBytes!)) throw invalid('file_too_large');
     const extensions = assignment.fileTypes.split(/[,;\s]+/).filter(Boolean);
@@ -28,11 +26,21 @@ export async function submitAssignment(adapter: MoodleAdapter, local: Submission
     if (previous.status === 'unknown') throw invalid('status_unknown');
     if (previous.canEdit === false) throw invalid('cannot_edit');
     if (assignment.drafts && previous.canSubmit === false) throw invalid('cannot_submit');
+    const moodleAllowsEditing = previous.canEdit === true && (!assignment.drafts || previous.canSubmit !== false);
+    const checkDates = (time: number) => {
+      if (moodleAllowsEditing) return;
+      if (assignment.allowSubmissionsFrom && Date.parse(assignment.allowSubmissionsFrom) > time) throw invalid('not_open');
+      if (assignment.cutoffDate && Date.parse(assignment.cutoffDate) < time) throw invalid('cutoff_passed');
+    };
+    checkDates(now);
+    const effectiveDueDate = previous.extensionDueDate &&
+      (assignment.dueDate === null || Date.parse(previous.extensionDueDate) > Date.parse(assignment.dueDate))
+      ? previous.extensionDueDate : assignment.dueDate;
     if (!confirmation.supported()) throw new MoodleError('CONFIRMATION_REQUIRED', undefined, {},
       'Use an MCP client that supports elicitation, such as Claude Code');
-    const late = assignment.dueDate !== null && Date.parse(assignment.dueDate) < now;
+    const late = effectiveDueDate !== null && Date.parse(effectiveDueDate) < now;
     const message = [
-      `Course: ${assignment.courseName}`, `Assignment: ${assignment.name}`, `Due date: ${assignment.dueDate ?? 'No due date'}`,
+      `Course: ${assignment.courseName}`, `Assignment: ${assignment.name}`, `Due date: ${effectiveDueDate ?? 'No due date'}`,
       ...(late ? ['LATE: the due date has passed.'] : []),
       ...files.map(file => `File: ${file.name} (${file.size} bytes)`),
       ...(previous.draftFileCount ? [`This replaces ${previous.draftFileCount} existing draft files.`] : []),
@@ -41,10 +49,11 @@ export async function submitAssignment(adapter: MoodleAdapter, local: Submission
       'Confirm this exact assignment and these files?',
     ].join('\n');
     const approval = await confirmation.confirm(message, assignment.requiresStatement);
-    if (!approval.confirmed || (assignment.requiresStatement && !approval.acceptedStatement)) return {submitted: false, cancelled: true};
-    if (assignment.cutoffDate && Date.parse(assignment.cutoffDate) < Date.now()) throw invalid('cutoff_passed');
+    if (!approval.confirmed || (assignment.requiresStatement && !approval.acceptedStatement)) return {submitted: false, cancelled: true,
+      ...(approval.reason ? {reason: approval.reason} : {})};
+    checkDates(Date.now());
     const snapshots = await local.readVerified(files);
-    if (assignment.cutoffDate && Date.parse(assignment.cutoffDate) < Date.now()) throw invalid('cutoff_passed');
+    checkDates(Date.now());
     // All bytes are snapshotted and rechecked before the first remote write.
     let itemId = 0;
     for (const file of snapshots) itemId = await adapter.uploadSubmissionFile(file, itemId);
@@ -56,7 +65,7 @@ export async function submitAssignment(adapter: MoodleAdapter, local: Submission
     const submittedAt = verified.lastModified ?? new Date().toISOString();
     return {submitted: true, status: verified.status, assignmentId: assignment.id, assignmentName: assignment.name,
       courseName: assignment.courseName, files: files.map(file => ({name: file.name, size: file.size})),
-      submittedAt, late: assignment.dueDate !== null && Date.parse(assignment.dueDate) < Date.parse(submittedAt)};
+      submittedAt, late: effectiveDueDate !== null && Date.parse(effectiveDueDate) < Date.parse(submittedAt)};
   } catch (error) {
     if (!draftSaved) throw error;
     const safe = error instanceof MoodleError ? error : new MoodleError('OPERATION_FAILED');

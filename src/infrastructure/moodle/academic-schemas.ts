@@ -34,10 +34,10 @@ export const gradeItemsSchema = z.object({usergrades: z.array(z.object({
   userid: idSchema, courseid: idSchema.optional(),
   gradeitems: z.array(z.object({
     itemname: z.string().nullable(), itemtype: z.string(), itemmodule: z.string().nullable(),
-    gradeformatted: z.string(), graderaw: z.number().finite().nullable(),
-    grademin: z.number().finite(), grademax: z.number().finite(),
-    percentageformatted: z.string(), feedback: z.string(),
-    gradedategraded: z.number().finite().nonnegative().nullable(), gradeishidden: z.boolean(),
+    gradeformatted: z.string().nullish(), graderaw: z.number().finite().nullish(),
+    grademin: z.number().finite().nullish(), grademax: z.number().finite().nullish(),
+    percentageformatted: z.string().nullish(), feedback: z.string().nullish(),
+    gradedategraded: z.number().finite().nonnegative().nullish(), gradeishidden: z.boolean().nullish(),
   })),
 }))});
 const forums = z.array(z.object({id: idSchema, course: idSchema, type: z.string()}));

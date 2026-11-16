@@ -11,9 +11,9 @@ export interface SubmissionAssignment extends Assignment {
   fileEnabled: boolean; maxFiles: number | null; maxFileBytes: number | null; fileTypes: string;
 }
 export interface SubmissionState {
-  status: string; lastModified: string | null; canEdit?: boolean; canSubmit?: boolean; draftFileCount?: number;
+  status: string; lastModified: string | null; canEdit?: boolean; canSubmit?: boolean; draftFileCount?: number; extensionDueDate?: string | null;
 }
 export interface SubmissionConfirmation {
   supported(): boolean;
-  confirm(message: string, requiresStatement: boolean): Promise<{confirmed: boolean; acceptedStatement: boolean}>;
+  confirm(message: string, requiresStatement: boolean): Promise<{confirmed: boolean; acceptedStatement: boolean; reason?: 'confirmation_timeout'}>;
 }

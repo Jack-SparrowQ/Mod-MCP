@@ -5,6 +5,7 @@ import type { SubmissionAssignment, SubmissionState } from '../../domain/submiss
 import { unixToIso, htmlToText } from '../../shared/moodle-values.js';
 import { idSchema, parseResponse } from './response-schemas.js';
 import type { RestClient } from './rest-client.js';
+import { normalizeSubmissionStatus } from '../../shared/submission-status.js';
 
 const flag = z.union([z.boolean(), z.literal(0), z.literal(1)]);
 const time = z.number().finite().nonnegative().nullish();
@@ -15,6 +16,8 @@ const assignmentSchema = z.object({courses: z.array(z.object({id: idSchema, assi
 }))}))});
 const stateSchema = z.object({lastattempt: z.object({
   canedit: flag.optional(), cansubmit: flag.optional(),
+  extensionduedate: time,
+  teamsubmission: z.object({status: z.string(), timemodified: time}).nullish(),
   submission: z.object({status: z.string(), timemodified: time, plugins: z.array(z.object({
     type: z.string(), fileareas: z.array(z.object({area: z.string(), files: z.array(z.unknown())})).optional(),
   })).optional()}).nullish(),
@@ -51,9 +54,7 @@ export async function submissionState(client: RestClient, assignmentId: number):
   const attempt = data.lastattempt;
   const areas = attempt?.submission?.plugins?.filter(plugin => plugin.type === 'file').flatMap(plugin => plugin.fileareas ?? [])
     .filter(area => area.area === 'submission_files');
-  const rawStatus = attempt?.submission?.status;
-  const status = ['submitted', 'draft', 'new', 'reopened'].includes(rawStatus ?? '') ? rawStatus! : 'unknown';
-  return {status, lastModified: unixToIso(attempt?.submission?.timemodified),
+  return {...normalizeSubmissionStatus(attempt), extensionDueDate: unixToIso(attempt?.extensionduedate),
     ...(attempt?.canedit !== undefined ? {canEdit: Boolean(attempt.canedit)} : {}),
     ...(attempt?.cansubmit !== undefined ? {canSubmit: Boolean(attempt.cansubmit)} : {}),
     ...(areas?.length ? {draftFileCount: areas.reduce((sum, area) => sum + area.files.length, 0)} : {}),

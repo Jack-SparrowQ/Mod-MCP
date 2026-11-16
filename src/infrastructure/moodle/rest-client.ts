@@ -31,8 +31,8 @@ export class RestClient {
     return this.redact(url.href);
   }
 
-  download(fileUrl: string, destination: string, maxBytes: number, expectedSize?: number | null) {
-    return downloadFile({fileUrl, destination, maxBytes, expectedSize,
+  download(fileUrl: string, destination: string, maxBytes: number, expectedSize?: number | null, root?: string) {
+    return downloadFile({fileUrl, destination, maxBytes, expectedSize, root,
       baseUrl: this.options.baseUrl, token: this.options.token, logger: this.options.logger, fetch: this.options.fetch});
   }
 

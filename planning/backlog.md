@@ -18,7 +18,8 @@ Roadmap from `docs/requirements.md` §14. Move items to "Done" with the date.
 - [x] **Phase 4 — Resource downloads** — done 2026-11-16, live-verified (commit c53ad41)
 - [x] **Phase 5 — Assignment submission** — done 2026-11-16, reviewed + live dry run (writes blocked); real submission untested by design
 - [x] LOW: draftSaved error after a partial submission (Phase 6a)
-- [ ] **Phase 6 — Release hardening**: 6a code done; Codex MCP client verified (auth_status + elicitation probe); final review pending
+- [x] **Phase 6 — Release hardening** — done 2026-11-16: 6a (draftSaved, @types/node 24), Codex client verified, final /code-review: 3 HIGH + 6 MEDIUM fixed (6b), path fixes live-verified
+- [ ] LOW: de-duplicate assignment schema/mapping between submission-adapter and academic-reads, moduleUrl vs url, inline token redaction (review finding 10)
 
 ## Done
 

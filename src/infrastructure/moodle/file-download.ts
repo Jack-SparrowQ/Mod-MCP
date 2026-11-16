@@ -4,6 +4,17 @@ import type { Logger } from 'pino';
 import { MoodleError } from '../../domain/errors.js';
 import { insideDirectory, suffixedFilename } from '../../shared/download-path.js';
 import { moodleResponseError } from './moodle-error.js';
+import { isWithinPath } from '../../shared/path-containment.js';
+
+function untilAborted<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const aborted = () => reject(new Error('Download timed out.'));
+    // Observe the operation even if the signal was already aborted, avoiding an unhandled rejection.
+    operation.then(resolve, reject).finally(() => signal.removeEventListener('abort', aborted));
+    if (signal.aborted) { aborted(); return; }
+    signal.addEventListener('abort', aborted, {once: true});
+  });
+}
 
 export function authorizedFileUrl(value: string, baseUrl: string): URL {
   const deny = () => new MoodleError('PERMISSION_DENIED', undefined, {}, 'Only Moodle-hosted files can be downloaded');
@@ -28,7 +39,7 @@ export function authorizedFileUrl(value: string, baseUrl: string): URL {
 
 export async function downloadFile(options: {
   fileUrl: string; baseUrl: string; token?: string; destination: string; maxBytes: number;
-  expectedSize?: number | null; logger: Logger; fetch?: typeof fetch; timeoutMs?: number;
+  expectedSize?: number | null; logger: Logger; fetch?: typeof fetch; timeoutMs?: number; root?: string;
 }) {
   const started = performance.now();
   let outcome = 'OK';
@@ -38,7 +49,12 @@ export async function downloadFile(options: {
   let part: Awaited<ReturnType<typeof open>> | undefined;
   const redact = (value: string) => options.token ? value.split(options.token).join('[REDACTED]') : value;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 60000);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const resetTimer = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 60000);
+  };
+  resetTimer();
   const tooLarge = () => new MoodleError('VALIDATION_ERROR', 'File exceeds the download size limit.', {maxMb: options.maxBytes / (1024 * 1024)});
   try {
     const url = authorizedFileUrl(options.fileUrl, options.baseUrl);
@@ -48,7 +64,8 @@ export async function downloadFile(options: {
     url.searchParams.set('token', options.token);
     let response: Response;
     try {
-      response = await (options.fetch ?? fetch)(url, {method: 'GET', redirect: 'error', signal: controller.signal});
+      response = await untilAborted((options.fetch ?? fetch)(url, {method: 'GET', redirect: 'error', signal: controller.signal}), controller.signal);
+      resetTimer(); // Headers arrived: subsequent timeout measures inactivity, not total duration.
     } catch { throw new MoodleError('MOODLE_UNAVAILABLE'); }
     if (response.status === 404) throw new MoodleError('RESOURCE_NOT_FOUND');
     if (response.status === 401 || response.status === 403) throw new MoodleError('PERMISSION_DENIED');
@@ -57,10 +74,15 @@ export async function downloadFile(options: {
     const length = response.headers.get('content-length');
     if (length !== null && Number(length) > options.maxBytes) { controller.abort(); throw tooLarge(); }
 
-    const directory = resolve(dirname(options.destination));
-    await mkdir(directory, {recursive: true});
-    // Refuse symlink/junction escapes instead of writing outside the selected directory.
-    if (resolve(await realpath(directory)) !== directory) throw new MoodleError('PERMISSION_DENIED');
+    const requestedDirectory = resolve(dirname(options.destination));
+    const root = resolve(options.root ?? requestedDirectory);
+    if (!isWithinPath(root, requestedDirectory)) throw new MoodleError('PERMISSION_DENIED');
+    await mkdir(root, {recursive: true});
+    if ((await lstat(root)).isSymbolicLink()) throw new MoodleError('PERMISSION_DENIED');
+    const rootReal = resolve(await realpath(root));
+    await mkdir(requestedDirectory, {recursive: true});
+    const directory = resolve(await realpath(requestedDirectory));
+    if (!isWithinPath(rootReal, directory)) throw new MoodleError('PERMISSION_DENIED');
     const name = basename(options.destination);
     for (let count = 0; ; count++) {
       const candidate = insideDirectory(directory, suffixedFilename(name, count));
@@ -87,8 +109,9 @@ export async function downloadFile(options: {
     const jsonChunks: Uint8Array[] = [];
     try {
       while (true) {
-        const {done, value} = await reader.read();
+        const {done, value} = await untilAborted(reader.read(), controller.signal);
         if (done) break;
+        resetTimer();
         bytes += value.byteLength;
         if (bytes > options.maxBytes) { controller.abort(); await reader.cancel(); throw tooLarge(); }
         if (isJson) jsonChunks.push(value);
@@ -97,7 +120,11 @@ export async function downloadFile(options: {
     } catch (error) {
       if (error instanceof MoodleError) throw error;
       throw new MoodleError('MOODLE_UNAVAILABLE');
-    } finally { reader.releaseLock(); }
+    } finally {
+      clearTimeout(timer);
+      if (controller.signal.aborted) await reader.cancel().catch(() => {});
+      reader.releaseLock();
+    }
     if (isJson) {
       let data: unknown;
       try { data = JSON.parse(Buffer.concat(jsonChunks).toString('utf8')); } catch { /* A JSON resource can contain arbitrary text. */ }

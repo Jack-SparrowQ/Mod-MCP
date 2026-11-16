@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { ElicitRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { ElicitRequestSchema, McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
+import { ELICITATION_TIMEOUT_MS } from '../../src/mcp/tools/submit-assignment.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { writeFile, mkdir, symlink } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -15,10 +16,12 @@ type Fixture = Awaited<ReturnType<typeof submissionFixture>>;
 type Handler = (request: any, fixture: Fixture) => Promise<any>;
 async function session(run: (client: Client, fixture: Fixture) => Promise<void>, options: {
   supported?: boolean; handler?: Handler; configure?: (fixture: Fixture) => void | Promise<void>;
+  setupServer?: (server: ReturnType<typeof createServer>) => void;
 } = {}) {
   const fixture = await submissionFixture();
   await options.configure?.(fixture);
   const server = createServer(fixture.adapter, {submissionFiles: fixture.files});
+  options.setupServer?.(server);
   const client = new Client({name: 'submission-offline', version: '1'},
     {capabilities: options.supported === false ? {} : {elicitation: {form: {}}}});
   if (options.supported !== false) client.setRequestHandler(ElicitRequestSchema, async request => {
@@ -43,6 +46,55 @@ it('requires an elicitation-capable client and makes zero writes otherwise', asy
       suggestion: 'Use an MCP client that supports elicitation, such as Claude Code'}});
     expect(fixture.writes()).toHaveLength(0);
   }, {supported: false});
+});
+it('accepts a first submission when lastattempt exists without a submission object', async () => {
+  await session(async (client, fixture) => {
+    expect((await submit(client)).structuredContent).toMatchObject({submitted: true, status: 'submitted'});
+    expect(fixture.writes().filter(call => call.name === 'upload')).toHaveLength(1);
+  }, {configure: fixture => { delete (fixture.preflight.lastattempt as {submission?: unknown}).submission; }});
+});
+it.each(["quote's.pdf", 'amp&.pdf', 'tick`.pdf', 'control\u007f.pdf'])
+  ('refuses PARAM_FILE-altered basename %s before HTTP/confirmation with a rename suggestion', async filename => {
+    await session(async (client, fixture) => {
+      const result = await submit(client, {assignmentId: 101, files: ['unit/' + filename]});
+      expect(result.structuredContent).toMatchObject({error: {code: 'VALIDATION_ERROR', context: {reason: 'filename_characters'}, suggestion: expect.stringContaining('Rename')}});
+      expect(fixture.mock).not.toHaveBeenCalled();
+    });
+  });
+it('trusts Moodle canedit overrides and uses the extended due date for the dialog and late output', async () => {
+  await session(async client => {
+    expect((await submit(client)).structuredContent).toMatchObject({submitted: true, late: false});
+  }, {configure: fixture => {
+    fixture.policy.allowsubmissionsfromdate = SECOND + day;
+    fixture.policy.cutoffdate = SECOND - day;
+    Object.assign(fixture.preflight.lastattempt, {extensionduedate: SECOND + 2 * day});
+  }, handler: async request => {
+    expect(request.params.message).toContain('Due date: 2026-11-18T12:00:00.000Z');
+    expect(request.params.message).not.toContain('LATE');
+    return {action: 'accept', content: {confirm: true}};
+  }});
+});
+it('uses a ten-minute elicitation timeout and returns a normal cancellation with no writes', async () => {
+  await session(async (client, fixture) => {
+    const result = await submit(client);
+    expect(result.isError).toBe(false);
+    expect(result.structuredContent).toEqual({submitted: false, cancelled: true, reason: 'confirmation_timeout'});
+    expect(fixture.writes()).toHaveLength(0);
+  }, {setupServer: server => {
+    vi.spyOn(server.server, 'elicitInput').mockImplementation(async (_params, options) => {
+      expect(ELICITATION_TIMEOUT_MS).toBe(600000);
+      expect(options?.timeout).toBe(600000);
+      throw new McpError(ErrorCode.RequestTimeout, 'Request timed out');
+    });
+  }});
+});
+it('a genuine elicitation protocol failure still returns CONFIRMATION_REQUIRED without writes', async () => {
+  await session(async (client, fixture) => {
+    expect((await submit(client)).structuredContent).toMatchObject({error: {code: 'CONFIRMATION_REQUIRED'}});
+    expect(fixture.writes()).toHaveLength(0);
+  }, {setupServer: server => {
+    vi.spyOn(server.server, 'elicitInput').mockRejectedValue(new McpError(ErrorCode.InternalError, 'Protocol failure'));
+  }});
 });
 it.each([
   {action: 'decline'}, {action: 'cancel'}, {action: 'accept', content: {confirm: false}},
@@ -149,8 +201,8 @@ it('refuses a junction escape before any HTTP call', async () => {
 });
 it.each([
   ['already_submitted', (f: Fixture) => { f.preflight.lastattempt.submission.status = 'submitted'; }],
-  ['cutoff_passed', (f: Fixture) => { f.policy.cutoffdate = SECOND - 1; }],
-  ['not_open', (f: Fixture) => { f.policy.allowsubmissionsfromdate = SECOND + day; }],
+  ['cutoff_passed', (f: Fixture) => { f.policy.cutoffdate = SECOND - 1; delete (f.preflight.lastattempt as {canedit?: boolean}).canedit; }],
+  ['not_open', (f: Fixture) => { f.policy.allowsubmissionsfromdate = SECOND + day; delete (f.preflight.lastattempt as {canedit?: boolean}).canedit; }],
   ['too_many_files', (f: Fixture) => { f.setting('maxfilesubmissions', '0'); }],
   ['file_too_large', (f: Fixture) => { f.setting('maxsubmissionsizebytes', '1'); }],
   ['file_extension', (f: Fixture) => { f.setting('filetypeslist', '.docx'); }],
