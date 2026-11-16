@@ -147,3 +147,56 @@ Phase 0b requires explicit human authorization and an approved account to verify
 
 No fallback browser authentication or API capability should be treated as verified
 from these public observations alone.
+
+---
+
+# Authenticated investigation — Phase 0b
+
+Observed 2026-11-16. Run by the user with their own student account:
+`node --env-file=.env scripts/probe-auth.mjs` (two POSTs: `login/token.php` with
+`service=moodle_mobile_app`, then `core_webservice_get_site_info`). Token and identity
+fields were never printed.
+
+## Result
+
+| Field | Value |
+|---|---|
+| release | `4.1.1+ (Build: 20230126)` — confirms the 0a hint |
+| version | `2022112801.02` |
+| lang | `es_mx` |
+| userissiteadmin | `false` |
+| downloadfiles / uploadfiles | `1` / `1` |
+| usercanmanageownfiles | `true` |
+| functionCount | 393 (service `moodle_mobile_app`) |
+
+Token issuance via username/password works for a student account (confirms `typeoflogin=1`).
+
+All 12 candidate functions are available:
+`core_webservice_get_site_info`, `core_course_get_courses`, `core_enrol_get_users_courses`,
+`core_course_get_contents`, `mod_assign_get_assignments`, `mod_assign_get_submissions`,
+`mod_assign_get_submission_status`, `gradereport_user_get_grade_items`,
+`gradereport_overview_get_course_grades`, `core_calendar_get_calendar_events`,
+`core_calendar_get_action_events_by_timesort`, `mod_forum_get_forum_discussions`.
+
+Also relevant for later phases: `mod_resource_get_resources_by_courses`,
+`mod_folder_get_folders_by_courses`, `mod_url_get_urls_by_courses`,
+`mod_forum_get_forums_by_courses`, `mod_forum_get_discussion_posts`,
+`core_calendar_get_calendar_upcoming_view`, `core_course_search_courses`,
+`core_user_get_users_by_field`; writes (Phase 5): `mod_assign_save_submission`,
+`mod_assign_submit_for_grading`, plus file upload (`uploadfiles=1`, `webservice/upload.php`).
+Downloads should use `webservice/pluginfile.php` with the token (`downloadfiles=1`).
+
+## Caveats
+
+- A function in the service list is **callable**, not **permitted**: Moodle still checks the
+  user's capabilities per call. Teacher functions in the list (`mod_assign_save_grade`,
+  `core_grades_grader_gradingpanel_point_store`, ...) will fail for a student and must never be
+  exposed by the MCP server anyway (requirements §11.3).
+- Response shapes for each function are not yet verified against this site; each Phase 2–3 task
+  verifies its function with one real read before relying on it.
+- Token lifetime and revocation behavior remain unverified.
+
+## Conclusion
+
+**Strategy A (Web Services REST with a mobile-service token) is verified** for every MVP read
+capability. Playwright is not needed for the MVP. Decision: `docs/decisions/0002-integration-strategy.md`.

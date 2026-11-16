@@ -1,7 +1,7 @@
 # Architecture
 
-Status: **provisional** — the integration strategy (Web Services API vs. Playwright) is decided at
-the end of Phase 0 (`docs/moodle-investigation.md`). Target design: `docs/requirements.md` §9–§10.
+Status: integration strategy decided — Moodle Web Services REST with a `moodle_mobile_app` token
+(ADR 0002). Playwright is not used in the MVP. Target design: `docs/requirements.md` §9–§10.
 
 ## Layers (dependencies point down only)
 

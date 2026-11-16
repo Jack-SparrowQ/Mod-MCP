@@ -6,6 +6,11 @@ coverage/
 .env
 .env.*
 !.env.example
+# Editor backup/undo/swap files can hold copies of .env
+*~
+*.un~
+*.swp
+*.swo
 *.token
 .auth/
 .browser-profile/

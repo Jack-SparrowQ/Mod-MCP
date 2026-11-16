@@ -1,5 +1,4 @@
 # Active task — none
 
-Phase 0a finished and reviewed on 2026-11-16 (report: `planning/reports/phase-0a.md`,
-findings: `docs/moodle-investigation.md`). Next: Phase 0b, which needs the user's account and
-explicit approval before it is specified and delegated.
+Phase 0 complete on 2026-11-16 (0b report: `planning/reports/phase-0b.md`; decision:
+`docs/decisions/0002-integration-strategy.md`). Next: specify Phase 1 — MCP foundation.
