@@ -4,9 +4,11 @@ Roadmap from `docs/requirements.md` §14. Move items to "Done" with the date.
 
 ## Next
 
-- [ ] **Phase 0 — Discovery & feasibility** (spec in `active-task.md`)
-  - [ ] 0a. Public probe (no credentials): Moodle version, Web Services endpoints, token endpoint
-  - [ ] 0b. Authenticated probe (needs the user's account, run with explicit approval)
+- [ ] **Phase 0 — Discovery & feasibility**
+  - [x] 0a. Public probe — done 2026-11-16: Moodle 4.1.x, WS + mobile service enabled, typeoflogin=1
+  - [ ] 0b. Authenticated probe (needs the user's account, run with explicit approval):
+        token via `login/token.php?service=moodle_mobile_app`, `core_webservice_get_site_info`,
+        list of granted functions vs. requirements §4.1
   - [ ] 0c. Decision record: integration strategy (API vs. Playwright)
 
 ## Later
