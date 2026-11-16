@@ -25,7 +25,7 @@ export const sectionsSchema = z.array(z.object({
 }));
 export const contentSchema = z.object({type: z.string()});
 export const fileSchema = z.object({
-  filename: z.string(), filesize: z.number().finite().nonnegative().nullish(),
+  filename: z.string(), filepath: z.string().default('/'), filesize: z.number().finite().nonnegative().nullish(),
   mimetype: z.string().nullish(), timemodified: timestamp,
 });
 export function parseResponse<T>(schema: z.ZodType<T>, value: unknown): T {

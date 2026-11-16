@@ -69,7 +69,7 @@ it('maps sections/modules/files but never returns file URLs or raw response extr
   expect(sections).toEqual([{id: 70, number: 0, name: 'General', summary: 'Introducción al curso', visible: true,
     modules: [{id: 71, name: 'Material', type: 'resource', visible: true,
       url: 'https://example.invalid/moodle/mod/resource/view.php?id=71', availability: 'Disponible > lunes',
-      files: [{filename: 'notes.pdf', size: 100, mimeType: 'application/pdf', modifiedAt: '2024-01-01T00:00:00.000Z'}]},
+      files: [{filename: 'notes.pdf', filepath: '/', size: 100, mimeType: 'application/pdf', modifiedAt: '2024-01-01T00:00:00.000Z'}]},
     {id: 72, name: 'Label', type: 'label', visible: null}]}]);
   expect(requests()[0]).toMatchObject({courseid: '7'});
   expect(JSON.stringify(sections)).not.toMatch(/fileurl|pluginfile|private-notes|private-external|fixture-token/);
@@ -93,7 +93,7 @@ it('returns null for absent file metadata and omits absent module optional field
     modules: [{id: 2, name: 'File', modname: 'resource', contents: [{type: 'file', filename: 'minimal.txt'}]}]}]});
   expect(await adapter.getCourseContents(7)).toEqual([{id: 1, number: null, name: 'Section', summary: null, visible: null,
     modules: [{id: 2, name: 'File', type: 'resource', visible: null,
-      files: [{filename: 'minimal.txt', size: null, mimeType: null, modifiedAt: null}]}]}]);
+      files: [{filename: 'minimal.txt', filepath: '/', size: null, mimeType: null, modifiedAt: null}]}]}]);
 });
 it('does not persist failed identity loads', async () => {
   const {adapter, responses, requests} = adapterFixture({core_webservice_get_site_info: {errorcode: 'invalidtoken'}});

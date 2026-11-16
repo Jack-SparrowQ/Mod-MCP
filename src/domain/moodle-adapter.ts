@@ -28,6 +28,7 @@ export interface Course {
 }
 export interface CourseFile {
   filename: string;
+  filepath: string;
   size: number | null;
   mimeType: string | null;
   modifiedAt: string | null;
@@ -61,4 +62,12 @@ export interface MoodleAdapter {
   getGradeOverview(courses: Course[]): Promise<CourseGrade[]>;
   getGradeItems(course: Course): Promise<GradeItem[]>;
   getAnnouncements(courses: Course[], limit: number): Promise<Announcement[]>;
+  downloadResource(input: DownloadResourceInput): Promise<DownloadedFile>;
+}
+export interface DownloadResourceInput {
+  courseId: number; moduleId: number; filename?: string; filepath?: string;
+}
+export interface DownloadedFile {
+  path: string; filename: string; originalFilename: string; size: number; mimeType: string | null;
+  courseId: number; moduleId: number;
 }

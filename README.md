@@ -48,6 +48,7 @@ Variables de `.env` (plantilla en `.env.example`):
 | `MOODLE_TOKEN` | sí | — (lo escribe `npm run token`) |
 | `MOODLE_BASE_URL` | no | `https://moodle.itescam.edu.mx/moodle4/` (solo HTTPS) |
 | `LOG_LEVEL` | no | `info` (`silent`, `error`, `warn`, `debug`…) |
+| `MAX_DOWNLOAD_MB` | no | `50` (entero de 1 a 500; límite por archivo) |
 
 El servidor carga el `.env` de la carpeta del proyecto aunque el cliente MCP lo lance desde otra
 carpeta.
@@ -100,6 +101,11 @@ Las fechas se devuelven en ISO 8601 (UTC).
 | `moodle_get_calendar_events` | `from?`, `to?` (7 días, máx. 92), `courseId?` | eventos del calendario |
 | `moodle_get_grades` | `courseId?` | resumen por curso, o elementos y total de un curso |
 | `moodle_get_announcements` | `courseId?`, `limit?` (10, máx. 50) | avisos de los foros de noticias |
+| `moodle_download_resource` | `courseId`, `moduleId`, `filename?`, `filepath?` | ruta local y metadatos de un archivo del curso |
+
+Las descargas se guardan en `downloads/<courseId>/` dentro del proyecto, con un límite de 50 MB
+por archivo (configurable con `MAX_DOWNLOAD_MB`). Los archivos existentes nunca se sobrescriben;
+se añade un sufijo al nombre. En carpetas se descarga un archivo por petición.
 
 Ejemplos de peticiones: *"¿Qué tareas tengo pendientes esta semana?"*, *"Muéstrame mis
 calificaciones de Redes"*, *"¿Qué hay en la sección 3 de Sistemas Operativos?"*.
@@ -131,7 +137,7 @@ Las herramientas devuelven `{ error: { code, message, suggestion } }` con estos 
 
 ## Limitaciones actuales
 
-- No descarga recursos ni entrega tareas (fases 4 y 5 del roadmap).
+- No entrega tareas (fase 5 del roadmap).
 - Avisos: solo la primera página de cada foro de noticias.
 - Fechas límite y calendario: como máximo 200 elementos por consulta (`truncated: true` si hay más).
 - Probado contra Moodle ITESCAM 4.1.1+. Otras instalaciones de Moodle pueden funcionar si

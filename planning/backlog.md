@@ -15,7 +15,7 @@ Roadmap from `docs/requirements.md` §14. Move items to "Done" with the date.
 ## Later
 
 - [x] **Phase 3 — Assignments, deadlines, calendar, grades, announcements** — done 2026-11-16, live-verified
-- [ ] Phase 4 — Resources and downloads
+- [ ] **Phase 4 — Resource downloads** (in progress, ADR 0004)
 - [ ] Phase 5 — Authorized submission (explicit confirmation, duplicate protection)
 - [ ] Phase 6 — Optimization, docs, client integration tests
 

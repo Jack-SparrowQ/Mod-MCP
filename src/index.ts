@@ -14,7 +14,7 @@ try {
   const logger = createLogger(config.LOG_LEVEL);
   const adapter = new RestAdapter(new RestClient({
     baseUrl: config.MOODLE_BASE_URL, token: config.MOODLE_TOKEN, logger,
-  }));
+  }), {root: fileURLToPath(new URL('../downloads/', import.meta.url)), maxBytes: config.MAX_DOWNLOAD_MB * 1024 * 1024});
   await createServer(adapter).connect(new StdioServerTransport());
 } catch {
   process.stderr.write('MCP startup failed. Check configuration and local file permissions.\n');
