@@ -7,6 +7,8 @@ import { htmlToText, unixToIso } from '../../shared/moodle-values.js';
 import type { RestClient } from './rest-client.js';
 import { AcademicReads } from './academic-reads.js';
 import { activityUrl } from '../../shared/activity-url.js';
+import type { UploadFile } from '../../domain/submission.js';
+import { submissionAssignment, submissionState } from './submission-adapter.js';
 import {
   parseResponse, idSchema, siteSchema, identitySchema, emailSchema, coursesSchema,
   sectionsSchema, contentSchema, fileSchema,
@@ -27,6 +29,17 @@ export class RestAdapter implements MoodleAdapter {
   getGradeOverview(courses: Course[]) { return this.academic.getGradeOverview(courses); }
   getGradeItems(course: Course) { return this.academic.getGradeItems(course); }
   getAnnouncements(courses: Course[], limit: number) { return this.academic.getAnnouncements(courses, limit); }
+  getSubmissionAssignment(courses: Course[], assignmentId: number) { return submissionAssignment(this.client, courses, assignmentId); }
+  getSubmissionState(assignmentId: number) { return submissionState(this.client, assignmentId); }
+  uploadSubmissionFile(file: UploadFile, itemId: number) { return this.client.upload(file, itemId); }
+  async saveSubmission(assignmentId: number, itemId: number) {
+    await this.client.write('mod_assign_save_submission', {assignmentid: assignmentId, plugindata: {files_filemanager: itemId}});
+  }
+  async submitForGrading(assignmentId: number, acceptedStatement: boolean) {
+    await this.client.write('mod_assign_submit_for_grading', {
+      assignmentid: assignmentId, acceptsubmissionstatement: acceptedStatement,
+    });
+  }
 
   async downloadResource(input: DownloadResourceInput): Promise<DownloadedFile> {
     parseResponse(idSchema, input.courseId);

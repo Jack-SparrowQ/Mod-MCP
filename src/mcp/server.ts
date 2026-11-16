@@ -11,8 +11,10 @@ import { registerGetCalendarEvents } from './tools/get-calendar-events.js';
 import { registerGetGrades } from './tools/get-grades.js';
 import { registerGetAnnouncements } from './tools/get-announcements.js';
 import { registerDownloadResource } from './tools/download-resource.js';
+import { registerSubmitAssignment } from './tools/submit-assignment.js';
+import type { SubmissionFiles } from '../domain/submission.js';
 
-export function createServer(adapter: MoodleAdapter) {
+export function createServer(adapter: MoodleAdapter, options: {submissionFiles?: SubmissionFiles} = {}) {
   const server = new McpServer({name: 'moodle-itescam-mcp', version: '0.1.0'});
   registerAuthStatus(server, adapter);
   registerGetProfile(server, adapter);
@@ -25,5 +27,6 @@ export function createServer(adapter: MoodleAdapter) {
   registerGetGrades(server, adapter);
   registerGetAnnouncements(server, adapter);
   registerDownloadResource(server, adapter);
+  registerSubmitAssignment(server, adapter, options.submissionFiles);
   return server;
 }

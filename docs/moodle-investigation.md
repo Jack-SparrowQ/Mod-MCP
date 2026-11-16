@@ -237,3 +237,32 @@ Results after fixes: assignments (421 total; default view now upcoming first: 22
 in the first 50), assignment detail 15/15 (12 submitted, 3 new+overdue), deadlines 20 pending
 (5 overdue, all with activity URLs), calendar 37 events in a 90-day window, grades overview 32
 courses and per-course 32/32 (462 items, 30 graded). Leak scan over 143 KB: clean.
+
+---
+
+# Live verification — Phase 4 downloads
+
+2026-11-16: smallest `resource` file (xlsx, 13 306 B) and smallest folder file (446 B, folder of 4)
+downloaded via `webservice/pluginfile.php` with the token as query param. Metadata size = saved
+size = size on disk; no `.part` left; repeat download created a ` (1)` copy; folder without
+`filename` → `VALIDATION_ERROR {fileCount: 4}`. Leak scan clean. Moodle file URLs do use
+`<base>webservice/pluginfile.php/…` on the configured origin.
+
+---
+
+# Live dry run — Phase 5 submission (writes hard-blocked)
+
+2026-11-16. Server started with a preload that throws on any `upload.php` / multipart request and
+on `mod_assign_save_submission` / `mod_assign_submit_for_grading`; the test client declined the
+elicitation. Results: open assignment + decline → `{submitted:false, cancelled:true}` (dialog had
+course, assignment, file lines; schema `confirm`); already submitted → `VALIDATION_ERROR
+already_submitted`; `../.env` → `VALIDATION_ERROR`; client without elicitation →
+`CONFIRMATION_REQUIRED`. No upload or write was attempted.
+
+**Discovered side effect of a read:** `mod_assign_get_submission_status` on an *open* assignment
+with no submission record creates an empty submission with status `new` (first call returns no
+submission; later calls show `new`, `timecreated` = time of the call). Same as opening the
+assignment in the browser: no files, not submitted, no grade effect. Observed: 2 records created
+by the dry run, 7 more by Claude's diagnostic calls (9 open assignments now `new`, 6 open still
+without record, 7 submitted). `moodle_get_assignment` (Phase 3) triggers it too. Documented in the
+README; no code change (there is no side-effect-free way to read submission status).

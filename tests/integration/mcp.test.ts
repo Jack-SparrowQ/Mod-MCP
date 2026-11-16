@@ -13,6 +13,7 @@ it.each(['success', 'AUTH_REQUIRED', 'SESSION_EXPIRED', 'PERMISSION_DENIED', 'un
       getAssignments: unused, getAssignmentSubmission: unused, getActionEvents: unused,
       getCalendarEvents: unused, getGradeOverview: unused, getGradeItems: unused, getAnnouncements: unused,
       downloadResource: unused,
+      getSubmissionAssignment: unused, getSubmissionState: unused, uploadSubmissionFile: unused, saveSubmission: unused, submitForGrading: unused,
       getCourses: async () => [], getCourseContents: async () => [], getSiteInfo: async () => {
       if (mode === 'unknown') throw new Error('private sentinel');
       if (mode !== 'success') throw new MoodleError(mode);
@@ -30,6 +31,7 @@ it.each(['success', 'AUTH_REQUIRED', 'SESSION_EXPIRED', 'PERMISSION_DENIED', 'un
         'moodle_get_assignments', 'moodle_get_assignment', 'moodle_get_upcoming_deadlines',
         'moodle_get_calendar_events', 'moodle_get_grades', 'moodle_get_announcements',
         'moodle_download_resource',
+        'moodle_submit_assignment',
       ]);
       const result = await client.callTool({name: 'moodle_auth_status', arguments: {}});
       const data = result.structuredContent;

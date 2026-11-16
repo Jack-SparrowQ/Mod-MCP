@@ -20,10 +20,10 @@ async function call(client: Client, input: Record<string, unknown>) {
   expect(result.content).toEqual([{type: 'text', text: JSON.stringify(result.structuredContent)}]);
   return result;
 }
-it('registers eleven tools and downloads a single file without exposing its URL/token', async () => {
+it('registers twelve tools and downloads a single file without exposing its URL/token', async () => {
   await session(async (client, fixture) => {
     const tools = (await client.listTools()).tools;
-    expect(tools).toHaveLength(11);
+    expect(tools).toHaveLength(12);
     expect(tools.find(tool => tool.name === 'moodle_download_resource')?.annotations)
       .toEqual({readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true});
     const result = await call(client, {courseId: 7, moduleId: 71});

@@ -6,7 +6,8 @@ Claude Desktop, Codex u otro cliente MCP) consultar tu cuenta de estudiante en
 límite, calificaciones, calendario y avisos.
 
 Usa la API oficial de Moodle (Web Services, el mismo servicio de la app móvil). No lee HTML, no
-guarda tu contraseña y **solo hace lecturas**: no entrega tareas ni modifica nada.
+guarda tu contraseña. Las consultas son de lectura; la entrega de archivos requiere confirmación
+explícita en un cliente MCP compatible con elicitation.
 
 ## Requisitos
 
@@ -86,7 +87,8 @@ Reinicia el cliente y pídele: *"Comprueba mi conexión con Moodle"* (usa `moodl
 
 ## Herramientas
 
-Todas son de solo lectura y actúan únicamente sobre tu cuenta: ninguna acepta un id de usuario.
+Las herramientas actúan únicamente sobre tu cuenta: ninguna acepta un id de usuario.
+`moodle_submit_assignment` es la única que escribe en Moodle y siempre requiere confirmación.
 Las fechas se devuelven en ISO 8601 (UTC).
 
 | Herramienta | Entradas | Devuelve |
@@ -102,10 +104,24 @@ Las fechas se devuelven en ISO 8601 (UTC).
 | `moodle_get_grades` | `courseId?` | resumen por curso, o elementos y total de un curso |
 | `moodle_get_announcements` | `courseId?`, `limit?` (10, máx. 50) | avisos de los foros de noticias |
 | `moodle_download_resource` | `courseId`, `moduleId`, `filename?`, `filepath?` | ruta local y metadatos de un archivo del curso |
+| `moodle_submit_assignment` | `assignmentId`, `files` (1–20 nombres relativos) | entrega verificada, tras confirmación en el cliente |
 
 Las descargas se guardan en `downloads/<courseId>/` dentro del proyecto, con un límite de 50 MB
 por archivo (configurable con `MAX_DOWNLOAD_MB`). Los archivos existentes nunca se sobrescriben;
 se añade un sufijo al nombre. En carpetas se descarga un archivo por petición.
+
+### Entregar una tarea
+
+Coloca los archivos en `submissions/` dentro del proyecto (carpeta ignorada por Git), por ejemplo
+`submissions/practica/informe.pdf`. Pasa `practica/informe.pdf` en `files`, junto al `assignmentId`
+obtenido con `moodle_get_assignments`. No se aceptan rutas absolutas ni archivos fuera de esa
+carpeta, enlaces simbólicos, archivos vacíos o duplicados.
+
+El cliente mostrará un formulario de confirmación con curso, tarea, archivos y tamaños, fecha
+límite y avisos de entrega tardía o reemplazo de borradores. Debes confirmar y, si corresponde,
+aceptar la declaración de autoría. La IA no puede responder ese formulario. Sin un cliente con
+elicitation de formularios (como Claude Code), no se sube ni entrega nada. Solo se informa éxito
+cuando Moodle devuelve el estado `submitted`; las escrituras no se reintentan automáticamente.
 
 Ejemplos de peticiones: *"¿Qué tareas tengo pendientes esta semana?"*, *"Muéstrame mis
 calificaciones de Redes"*, *"¿Qué hay en la sección 3 de Sistemas Operativos?"*.
@@ -131,13 +147,18 @@ Las herramientas devuelven `{ error: { code, message, suggestion } }` con estos 
 - Los logs van a stderr y solo registran la función de Moodle llamada, la duración y el resultado:
   sin parámetros, datos personales ni token.
 - Solo se pueden llamar 12 funciones de lectura de Moodle (lista explícita en
-  `src/infrastructure/moodle/rest-client.ts`). Las funciones de escritura y de profesor no son
-  accesibles.
+  `src/infrastructure/moodle/rest-client.ts`). Las dos funciones de entrega tienen una vía de
+  escritura separada, usada únicamente después de la confirmación. No hay funciones de profesor.
 - No se devuelven enlaces de descarga de archivos.
+- **Efecto de Moodle al consultar el estado de una tarea:** la primera vez que se consulta una tarea
+  abierta (`moodle_get_assignment`, o las comprobaciones previas de `moodle_submit_assignment`),
+  Moodle crea un registro de entrega vacío con estado `new`, igual que al abrir la tarea en el
+  navegador. No contiene archivos, no es una entrega y no afecta a la calificación.
 
 ## Limitaciones actuales
 
-- No entrega tareas (fase 5 del roadmap).
+- Entregas: solo archivos, sin texto en línea, reenvíos ni entregas de grupo. Requiere un cliente
+  con elicitation de formularios; una tarea ya entregada se rechaza.
 - Avisos: solo la primera página de cada foro de noticias.
 - Fechas límite y calendario: como máximo 200 elementos por consulta (`truncated: true` si hay más).
 - Probado contra Moodle ITESCAM 4.1.1+. Otras instalaciones de Moodle pueden funcionar si

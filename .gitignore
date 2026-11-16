@@ -19,6 +19,7 @@ storage-state*.json
 
 # Downloads and test output
 downloads/
+submissions/
 test-results/
 playwright-report/
 

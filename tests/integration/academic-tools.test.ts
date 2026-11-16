@@ -22,7 +22,7 @@ async function call(client: Client, name: string, args: Record<string, unknown> 
   return result;
 }
 
-it('lists eleven tools with correct local-write annotations, returns only own profile fields and leaves auth status private', async () => {
+it('lists twelve tools with correct write annotations, returns only own profile fields and leaves auth status private', async () => {
   const {adapter} = adapterFixture();
   await withClient(adapter, async client => {
     const tools = (await client.listTools()).tools;
@@ -31,8 +31,9 @@ it('lists eleven tools with correct local-write annotations, returns only own pr
       'moodle_get_assignments', 'moodle_get_assignment', 'moodle_get_upcoming_deadlines',
       'moodle_get_calendar_events', 'moodle_get_grades', 'moodle_get_announcements',
       'moodle_download_resource',
+      'moodle_submit_assignment',
     ]);
-    expect(tools.filter(tool => tool.name !== 'moodle_download_resource').every(tool => tool.annotations?.readOnlyHint)).toBe(true);
+    expect(tools.filter(tool => !['moodle_download_resource', 'moodle_submit_assignment'].includes(tool.name)).every(tool => tool.annotations?.readOnlyHint)).toBe(true);
     expect(tools.find(tool => tool.name === 'moodle_download_resource')?.annotations).toMatchObject({readOnlyHint: false, idempotentHint: false, destructiveHint: false});
     const profile = await call(client, 'moodle_get_profile');
     expect(profile.isError).toBe(false);
@@ -108,7 +109,8 @@ it.each(['AUTH_REQUIRED', 'SESSION_EXPIRED'] as const)('new tools treat %s as an
   const failing = async (): Promise<never> => { throw new MoodleError(code); };
   const adapter: MoodleAdapter = {getSiteInfo: failing, getProfile: failing, getCourses: failing, getCourseContents: failing,
     getAssignments: failing, getAssignmentSubmission: failing, getActionEvents: failing,
-    getCalendarEvents: failing, getGradeOverview: failing, getGradeItems: failing, getAnnouncements: failing, downloadResource: failing};
+    getCalendarEvents: failing, getGradeOverview: failing, getGradeItems: failing, getAnnouncements: failing, downloadResource: failing,
+    getSubmissionAssignment: failing, getSubmissionState: failing, uploadSubmissionFile: failing, saveSubmission: failing, submitForGrading: failing};
   await withClient(adapter, async client => {
     for (const name of ['moodle_get_profile', 'moodle_get_courses', 'moodle_get_course_contents']) {
       const result = await call(client, name, name === 'moodle_get_course_contents' ? {courseId: 7} : {});

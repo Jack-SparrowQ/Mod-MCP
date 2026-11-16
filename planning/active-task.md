@@ -1,71 +1,104 @@
-# Active task — Phase 4: resource downloads
+# Active task — Phase 5: assignment submission
 
 Status: **delegated to Codex** — 2026-11-16
 
 ## Goal
 
-`moodle_download_resource` per `docs/decisions/0004-resource-downloads.md` (read it first) and
-requirements FR-08, NFR-01. Reuse existing patterns (adapter, schemas, `read-tool`, enrolled-course
-check, `rest-client` logging/redaction).
+`moodle_submit_assignment` per `docs/decisions/0005-assignment-submission.md` (read first) and
+requirements FR-09, §11.2, §11.4, NFR-02. This is the only Moodle **write**. Reuse existing
+patterns (adapter, schemas, enrolled checks, `readTool`-style results, path helpers from Phase 4).
 
-## Changes
+## Tool `moodle_submit_assignment`
 
-1. **Course contents file metadata** (`moodle_get_course_contents`): add `filepath` (Moodle `filepath`,
-   default `/`) to each file so folder files can be told apart. Still no URLs.
-2. **rest-client `download(fileUrl, destination, maxBytes)`** (or equivalent in infrastructure):
-   - Accept only URLs whose origin equals `MOODLE_BASE_URL`'s origin and whose path starts with
-     `<base path>webservice/pluginfile.php/`. Anything else → `PERMISSION_DENIED`
-     (suggestion: "Only Moodle-hosted files can be downloaded"), **zero fetch calls**.
-   - Append `token=<token>` as a query param (pluginfile requires it); `redirect: 'error'`; timeout
-     (60 s); GET.
-   - HTTP 404 → `RESOURCE_NOT_FOUND`; 403/401 → `PERMISSION_DENIED`; network/5xx → `MOODLE_UNAVAILABLE`.
-     A JSON body (`content-type` application/json with `errorcode`) is a Moodle error, not a file:
-     map like REST errors.
-   - Reject when `content-length` > maxBytes before reading; while streaming, abort once bytes
-     exceed maxBytes. Over limit → `VALIDATION_ERROR` with `context: {maxMb}`.
-   - Stream to `<final>.part`, then rename; delete the `.part` on any failure.
-   - Log one line: `function: 'pluginfile'`, duration, outcome, bytes. Never the URL, filename or token.
-3. **Path safety** (pure helper in `src/shared/`, unit-tested):
-   - filename → basename only; remove `/ \ : * ? " < > |` and control chars; trim trailing dots/spaces;
-     prefix `_` for Windows reserved names (`CON`, `PRN`, `AUX`, `NUL`, `COM1-9`, `LPT1-9`, with or
-     without extension); empty → `file`; max 150 chars keeping the extension.
-   - Destination dir `<project root>/downloads/<courseId>/` (project root resolved like the `.env`
-     loading in `src/index.ts`); create recursively. Final path must resolve inside that dir (assert).
-   - Existing file → `name (1).ext`, `name (2).ext`, … never overwrite.
-4. **Config**: `MAX_DOWNLOAD_MB` (int 1–500, default 50) in `src/shared/config.ts` and `.env.example`.
-5. **Tool `moodle_download_resource`**
-   - Input (strict): `courseId` int>0, `moduleId` int>0, `filename?` string 1–255, `filepath?` string.
-   - Flow: enrolled check (not enrolled → `RESOURCE_NOT_FOUND`, zero contents calls) →
-     `core_course_get_contents` → find module by id (missing → `RESOURCE_NOT_FOUND`) → its
-     `type=file` contents → select: if `filename` given match filename (+ filepath if given);
-     if not given and exactly one file, use it; several → `VALIDATION_ERROR` whose context has
-     `fileCount` (suggestion: pass filename; see moodle_get_course_contents); none → `RESOURCE_NOT_FOUND`.
-   - Output: `{ file: { path (absolute local), filename (as saved), originalFilename, size, mimeType,
-     courseId, moduleId } }`. If Moodle metadata has `filesize` and the saved size differs → delete the
-     file and return `OPERATION_FAILED`.
-   - Annotations: `readOnlyHint: false`, `destructiveHint: false`, `idempotentHint: false`,
-     `openWorldHint: true`. Description says files are saved locally and never overwritten.
-6. **README.md** (only these edits): add the tool to the tools table, add `MAX_DOWNLOAD_MB` to the
-   `.env` table, mention `downloads/<courseId>/` and the size limit, and remove "no descarga
-   recursos" from the limitations (keep "no entrega tareas"). Claude reviews the wording.
+Input (strict): `assignmentId` int>0, `files`: array (1–20) of file names **relative to
+`<project>/submissions/`** (subfolders allowed). No user id, no URLs, no absolute paths.
+
+Annotations: `readOnlyHint: false`, `destructiveHint: true`, `idempotentHint: false`,
+`openWorldHint: true`. Description: explains the submissions/ folder, that the user will be asked
+to confirm in the client, and that already-submitted assignments are refused.
+
+### Flow (stop at the first failure; every failure before step 5 performs **zero writes**)
+
+1. **Local files** — resolve each name inside `<project>/submissions/` (project root resolved like
+   `.env`/downloads); refuse `..`, absolute paths, symlinks/junctions (realpath must stay inside),
+   non-regular files, empty files, duplicates → `VALIDATION_ERROR`. Compute size + SHA-256 each.
+2. **Assignment checks (reads only)** — assignment must belong to an enrolled course (reuse the
+   assignments list; else `RESOURCE_NOT_FOUND`). From `mod_assign_get_assignments` use
+   `submissiondrafts`, `requiresubmissionstatement`, `allowsubmissionsfromdate`, `cutoffdate`,
+   `duedate` and `configs` (`plugin=file`, `subtype=assignsubmission`: `enabled`,
+   `maxfilesubmissions`, `maxsubmissionsizebytes`, `filetypeslist`). From
+   `mod_assign_get_submission_status` (assignid only): current status, existing draft file count if
+   available, `lastattempt.canedit`/`cansubmit` when present.
+   Refuse with `VALIDATION_ERROR` (context says which): file plugin disabled (→ use
+   `INTEGRATION_UNSUPPORTED` instead), not open yet, cutoff passed, already `submitted`, `canedit`
+   false, too many files, a file over `maxsubmissionsizebytes` (when > 0), extension not in
+   `filetypeslist` (only check entries that are `.ext`; if the list contains group names, skip the
+   local check and let Moodle validate).
+3. **Elicitation** — if the client did not declare the `elicitation` capability →
+   `CONFIRMATION_REQUIRED` (suggestion: "Use an MCP client that supports elicitation, such as Claude
+   Code"). Otherwise `elicitInput` (form mode) with a message containing: course name, assignment
+   name, due date and **LATE** warning if past due, each file name + size, "replaces N existing draft
+   files" when applicable, and that it will be submitted for grading (final) when
+   `submissiondrafts` is on. Schema: required boolean `confirm`; plus required boolean
+   `acceptStatement` when `requiresubmissionstatement` (statement text in the message if available,
+   else a generic one). Only `action === 'accept'` with `confirm === true` (and `acceptStatement ===
+   true` when required) proceeds. Decline/cancel/false → normal (non-error) result
+   `{ submitted: false, cancelled: true }`, zero writes.
+4. **Re-check** — recompute SHA-256/size of every file; any change → `VALIDATION_ERROR`, zero writes.
+5. **Writes (no retries)** — in-process lock per assignmentId (second concurrent call →
+   `VALIDATION_ERROR` "submission already in progress").
+   a. Upload each file to the draft area: multipart POST `<base>webservice/upload.php` with `token`,
+      `filearea=draft`, `itemid` (0 for the first, then the returned itemid). Same-origin only,
+      `redirect: 'error'`, timeout 120 s. Response is a JSON array of `{itemid, filename,…}` or a
+      Moodle error object → mapped error.
+   b. `mod_assign_save_submission` with `assignmentid` and `plugindata[files_filemanager]=itemid`.
+      Non-empty `warnings` → `OPERATION_FAILED` with warning `warningcode`s only (no free text).
+   c. If `submissiondrafts` is on: `mod_assign_submit_for_grading` with `assignmentid` and
+      `acceptsubmissionstatement` = 1 only when the user accepted it. Warnings as in b.
+6. **Verify** — `mod_assign_get_submission_status`; success only if status is `submitted`. Else
+   `OPERATION_FAILED` "Moodle did not confirm the submission" (context: observed status). Never
+   claim success without this.
+
+Output on success: `{ submitted: true, status, assignmentId, assignmentName, courseName, files:
+[{name, size}], submittedAt, late }`.
+
+## REST client
+
+- Add `mod_assign_save_submission`, `mod_assign_submit_for_grading` to a separate
+  `WRITE_FUNCTIONS` list. `call()` refuses them unless an explicit write option/method is used
+  (`INTEGRATION_UNSUPPORTED`, zero fetch); only the submit use case uses that path.
+- `upload(...)` for `webservice/upload.php` (multipart via `FormData`/`Blob`, no new deps).
+- Logging: function, duration, outcome, bytes. Never file names, hashes, URLs, token, params.
+
+## Other files
+
+- `.gitignore`: add `submissions/`.
+- README: tool row, how to use `submissions/`, the confirmation dialog, limitations (files only,
+  no resubmission, requires elicitation-capable client). Claude reviews wording.
 
 ## Out of scope
 
-Zip/folder bulk download, assignment intro attachments, submissions/uploads (Phase 5), real Moodle
-calls (Claude runs the live check), `.env`, new dependencies (use `node:fs`, `node:stream`).
+Online-text submissions, resubmission/reopen, removing files, group-submission special handling
+(if `teamsubmission` is on, refuse with `INTEGRATION_UNSUPPORTED`), real Moodle calls, `.env`,
+new dependencies, committing.
 
 ## Acceptance criteria
 
 - `npm run typecheck`, `npm run build`, `npm test` pass (paste result lines).
-- Tests (mocked fetch, temp directories only — never the real `downloads/`):
-  - host/path validation: foreign host, same host other path, `http:`, look-alike host
-    (`moodle.itescam.edu.mx.evil.com`), path traversal in URL → refused with zero fetch calls.
-  - token appears only in the fetch URL, never in output, errors or logs.
-  - sanitization cases incl. `../../x.pdf`, `C:\\Windows\\a.txt`, `CON.txt`, `nul`, control chars,
-    long names; final path stays inside the course dir.
-  - no overwrite (suffixes); `.part` removed on error and on size overflow (content-length and
-    streamed); size mismatch with metadata → file deleted + `OPERATION_FAILED`.
-  - JSON error body mapped; 404/403 mapped.
-  - tool via in-memory MCP client: single-file module, multi-file without filename →
-    `VALIDATION_ERROR`, with filename, not enrolled, module missing; tool list has 11 tools.
-- Report `planning/reports/phase-4.md` (AGENTS.md format) with assumptions for the live check.
+- Tests (mocked fetch, temp dirs; elicitation through the SDK in-memory client with an
+  `elicitation` capability and an `ElicitRequestSchema` handler):
+  - client without elicitation → `CONFIRMATION_REQUIRED`, zero writes (no upload, save, submit).
+  - decline / cancel / confirm=false / missing acceptStatement when required → cancelled, zero writes.
+  - accept → exact call order upload(s) → save → submit_for_grading (only when drafts on) →
+    status; `itemid` reused across uploads; success output.
+  - verification shows `draft` → `OPERATION_FAILED`, no success claim.
+  - path attacks (`../x`, absolute, symlink/junction where the OS allows, directory, empty file,
+    duplicates) → `VALIDATION_ERROR`, zero calls.
+  - already submitted, cutoff passed, not yet open, too many files, oversize, wrong `.ext`,
+    file plugin disabled, team submission → refused, zero writes.
+  - file modified between hash and re-check → refused, zero writes.
+  - concurrent submission same assignment → second refused.
+  - write functions via plain `call()` → refused, zero fetch.
+  - no request body ever contains `userid`; upload goes only to the configured origin.
+  - tool list has 12 tools.
+- Report `planning/reports/phase-5.md` (AGENTS.md format) with assumptions for the live check.

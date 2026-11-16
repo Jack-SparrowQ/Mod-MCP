@@ -15,8 +15,9 @@ Roadmap from `docs/requirements.md` §14. Move items to "Done" with the date.
 ## Later
 
 - [x] **Phase 3 — Assignments, deadlines, calendar, grades, announcements** — done 2026-11-16, live-verified
-- [ ] **Phase 4 — Resource downloads** (in progress, ADR 0004)
-- [ ] Phase 5 — Authorized submission (explicit confirmation, duplicate protection)
+- [x] **Phase 4 — Resource downloads** — done 2026-11-16, live-verified (commit c53ad41)
+- [x] **Phase 5 — Assignment submission** — done 2026-11-16, reviewed + live dry run (writes blocked); real submission untested by design
+- [ ] LOW: report "a draft may have been saved" when save_submission succeeds but submit_for_grading fails
 - [ ] Phase 6 — Optimization, docs, client integration tests
 
 ## Done

@@ -1,4 +1,5 @@
 import type { Assignment, SubmissionInfo, AssignmentGrade, Deadline, CalendarEvent, CourseGrade, GradeItem, Announcement } from './academic.js';
+import type { SubmissionAssignment, SubmissionState, UploadFile } from './submission.js';
 
 export interface SiteInfo {
   release: string;
@@ -63,6 +64,11 @@ export interface MoodleAdapter {
   getGradeItems(course: Course): Promise<GradeItem[]>;
   getAnnouncements(courses: Course[], limit: number): Promise<Announcement[]>;
   downloadResource(input: DownloadResourceInput): Promise<DownloadedFile>;
+  getSubmissionAssignment(courses: Course[], assignmentId: number): Promise<SubmissionAssignment | undefined>;
+  getSubmissionState(assignmentId: number): Promise<SubmissionState>;
+  uploadSubmissionFile(file: UploadFile, itemId: number): Promise<number>;
+  saveSubmission(assignmentId: number, itemId: number): Promise<void>;
+  submitForGrading(assignmentId: number, acceptedStatement: boolean): Promise<void>;
 }
 export interface DownloadResourceInput {
   courseId: number; moduleId: number; filename?: string; filepath?: string;
